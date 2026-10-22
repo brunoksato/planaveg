@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.env
+*.pyc
+data/*.dump
+data/*.sql
+data/*.csv
+dist/
+.coverage
+htmlcov/
+gpkg/
+.import_linter_cache

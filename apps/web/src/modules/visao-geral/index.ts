@@ -1,0 +1,1 @@
+export { VisaoGeralScreen } from "./VisaoGeralScreen";

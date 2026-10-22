@@ -1,0 +1,153 @@
+# Produção num servidor só (4 vCPU, 16 GB, NVMe): PostGIS, GeoServer, nginx (portal, proxy e
+# cache) e a CLI do núcleo. Os segredos ficam em /opt/planaveg/.env (veja env.example). No
+# servidor, de /opt/planaveg/app:
+#   docker compose -f infra/producao/compose.yaml --env-file /opt/planaveg/.env up -d
+#
+# Memória: GeoServer até 4 GB de heap (~5 GB com o resto da JVM), PostgreSQL 3 GB de
+# shared_buffers e o que sobra (~6 GB) para o cache de disco do sistema, onde ficam as geometrias
+# mais lidas e os tiles do GeoWebCache. Swap de 4 GB só para aperto.
+name: planaveg
+
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    restart: unless-stopped
+    shm_size: 1g
+    environment:
+      POSTGRES_DB: planaveg
+      POSTGRES_USER: planaveg
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina no .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planaveg -d planaveg"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - banco:/var/lib/postgresql/data
+    # Só na máquina: o GeoServer e a CLI falam pela rede do compose; o acesso de fora é pela
+    # tailnet (`tailscale serve` repassa a 5432 daqui).
+    ports:
+      - "127.0.0.1:5432:5432"
+    command:
+      - postgres
+      - -c
+      - shared_buffers=3GB
+      - -c
+      - effective_cache_size=9GB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - max_connections=40
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - jit=off
+
+  geoserver:
+    build:
+      context: ../..
+      dockerfile: infra/producao/Dockerfile.geoserver
+    image: planaveg-geoserver:2.26.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD:?defina no .env}
+      SKIP_DEMO_DATA: "true"
+      INSTALL_EXTENSIONS: "false"
+      # Dados abertos: qualquer site pode ler (só leitura; o nginx barra o resto).
+      CORS_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: "*"
+      CORS_ALLOWED_METHODS: "GET,HEAD,OPTIONS"
+      # O endereço público entra nas capacidades (WMS, WFS, WMTS) que o QGIS lê: vem dos
+      # cabeçalhos do nginx. Sem eles (o admin pela tailnet), vale o endereço do próprio pedido,
+      # e o login não vai parar no domínio público, onde o nginx o barra.
+      PROXY_BASE_URL_HEADERS: "true"
+      PROXY_BASE_URL: "$${X-Forwarded-Proto}://$${X-Forwarded-Host}/geoserver http://$${Host}/geoserver"
+      EXTRA_JAVA_OPTS: >-
+        -Xms2g -Xmx4g
+        -DGEOWEBCACHE_CACHE_DIR=/opt/gwc_cache
+    # Só na máquina: o nginx chega por aqui e o admin, pela tailnet (`tailscale serve`).
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # A configuração sobrevive a reinícios; `planaveg-core geoserver` a refaz a cada publicação.
+      - geoserver:/opt/geoserver_data
+      - gwc:/opt/gwc_cache
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1:8080/geoserver/web/"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/Dockerfile.web
+      args:
+        # Mesmo domínio do portal: o build não depende do endereço público.
+        VITE_GEOSERVER_URL: /geoserver
+        VITE_GEOSERVER_WORKSPACE: planaveg
+        NGINX_CONF: infra/producao/nginx.conf
+    image: planaveg-web
+    restart: unless-stopped
+    # Na rede do host, para o firewall (ufw) valer na 443: só a Cloudflare chega.
+    network_mode: host
+    depends_on:
+      geoserver:
+        condition: service_healthy
+    volumes:
+      - /opt/planaveg/tls:/etc/nginx/tls:ro
+      # Os filtros pedidos pelo mapa (filtros.log), para o aquecimento do cache; rodados pelo
+      # logrotate do servidor (instalar-aquecimento.sh).
+      - /opt/planaveg/logs:/var/log/planaveg
+      # As versões vigentes, que o core mantém: só elas ficam um ano em cache (nginx.conf).
+      - /opt/planaveg/vigentes:/etc/nginx/vigentes:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8081/saude"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # CLI do núcleo, só sob demanda: `docker compose ... run --rm core <comando>`.
+  core:
+    build:
+      context: ../..
+      dockerfile: infra/Dockerfile.core
+    image: planaveg-core
+    profiles: ["ferramentas"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://planaveg:${POSTGRES_PASSWORD}@db:5432/planaveg
+      # O arquivo é o que o contrato descreve, nesta pasta; GPKG_ARQUIVO no .env troca o nome.
+      GPKG_DIR: /dados
+      GPKG_PATH: ${GPKG_ARQUIVO:+/dados/${GPKG_ARQUIVO}}
+      GEOSERVER_URL: http://geoserver:8080/geoserver
+      GEOSERVER_USER: admin
+      GEOSERVER_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD}
+      GEOSERVER_PG_HOST: db
+      GEOSERVER_PG_PASSWORD: ${GEOSERVER_PG_PASSWORD:?defina no .env}
+      # Teto do cache de tiles (cada filtro novo do mapa ocupa espaço): saem os usados há mais tempo.
+      # O PNG de 24 bits ocupa cerca de 2,8 vezes o de 8: 40 guardam tantos filtros quanto 20 antes.
+      GWC_COTA_GB: ${GWC_COTA_GB:-40}
+      # Um arquivo por versão vigente, para o nginx (o volume do serviço web).
+      VERSOES_VIGENTES: /vigentes
+    volumes:
+      - /srv/planaveg/gpkg:/dados:ro
+      - /opt/planaveg/vigentes:/vigentes
+
+volumes:
+  banco:
+  geoserver:
+  gwc:

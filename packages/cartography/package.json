@@ -1,0 +1,26 @@
+{
+  "name": "@sinaveg/cartography",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "leaflet": "1.9.4",
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/leaflet": "1.9.22",
+    "@types/react": "^19.2.18",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.11"
+  }
+}

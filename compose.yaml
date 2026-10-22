@@ -1,0 +1,77 @@
+# O ambiente local inteiro: o banco (PostGIS), o GeoServer e o portal. `make up` sobe os três e
+# publica as camadas; a base vem antes, com `make run` em apps/core.
+name: planaveg-core
+
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: planaveg
+      POSTGRES_PASSWORD: planaveg
+      POSTGRES_USER: planaveg
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planaveg -d planaveg"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "55434:5432"
+    volumes:
+      - planaveg-core:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - jit=off
+
+  # A configuração do GeoServer (workspace, datastore, camadas, estilos) não tem volume: é
+  # refeita por `planaveg-core geoserver` a cada subida. Só o cache de tiles (GeoWebCache)
+  # fica num volume, para os tiles semeados sobreviverem à recriação do container. CORS
+  # liberado para o portal ler WMTS, WMS e WFS direto do navegador.
+  geoserver:
+    image: docker.osgeo.org/geoserver:2.26.2
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: planaveg
+      SKIP_DEMO_DATA: "true"
+      INSTALL_EXTENSIONS: "false"
+      CORS_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: "*"
+      CORS_ALLOWED_METHODS: "GET,POST,HEAD,OPTIONS"
+      CORS_ALLOWED_HEADERS: "*"
+      EXTRA_JAVA_OPTS: "-Xms1g -Xmx3g -DGEOWEBCACHE_CACHE_DIR=/opt/gwc_cache"
+    ports:
+      - "8085:8080"
+    volumes:
+      - planaveg-core-gwc:/opt/gwc_cache
+
+  # O portal (apps/web), servido pelo nginx. O endereço do GeoServer entra no build.
+  web:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.web
+      args:
+        VITE_GEOSERVER_URL: http://127.0.0.1:8085/geoserver
+        VITE_GEOSERVER_WORKSPACE: planaveg
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:4173/"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "4173:4173"
+
+volumes:
+  planaveg-core:
+  planaveg-core-gwc:

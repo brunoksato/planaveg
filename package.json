@@ -1,0 +1,20 @@
+{
+  "name": "sinaveg",
+  "private": true,
+  "scripts": {
+    "build:web": "pnpm --recursive --if-present run build",
+    "format:web": "oxfmt apps/web packages package.json pnpm-workspace.yaml tsconfig.base.json oxlint.json .oxfmtrc.json '!apps/**/routeTree.gen.ts'",
+    "format:web:check": "oxfmt --check apps/web packages package.json pnpm-workspace.yaml tsconfig.base.json oxlint.json .oxfmtrc.json '!apps/**/routeTree.gen.ts'",
+    "lint:web": "oxlint -c oxlint.json --deny-warnings .",
+    "test:web": "pnpm --recursive --if-present run test",
+    "typecheck:web": "pnpm --recursive --if-present run typecheck",
+    "doctor": "react-doctor"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
+    "react-doctor": "^0.9.12",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "pnpm@11.9.0"
+}

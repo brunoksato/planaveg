@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1.7
+# GeoServer de produção: a imagem oficial com a extensão control-flow (limita os pedidos
+# simultâneos) já instalada, para o container não baixar nada ao subir.
+FROM docker.osgeo.org/geoserver:2.26.2
+
+ADD --checksum=sha256:a8139c1e01d7c4791cf81520385fa3d0ae94fb82809957d2aec747effa0b38bc \
+  https://downloads.sourceforge.net/project/geoserver/GeoServer/2.26.2/extensions/geoserver-2.26.2-control-flow-plugin.zip \
+  /tmp/control-flow.zip
+RUN unzip -q -o -d "${GEOSERVER_LIB_DIR}" /tmp/control-flow.zip "*.jar" && rm /tmp/control-flow.zip
+
+# A control-flow lê os limites na raiz do diretório de dados, que é um volume: o arquivo vai na
+# imagem e é copiado para lá a cada subida.
+COPY infra/producao/controlflow.properties /opt/planaveg/controlflow.properties
+ENTRYPOINT ["bash", "-c", "cp /opt/planaveg/controlflow.properties \"$GEOSERVER_DATA_DIR\" && exec bash /opt/startup.sh"]

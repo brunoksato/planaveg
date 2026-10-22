@@ -1,0 +1,943 @@
+{
+  "schema_version": "1.0.0",
+  "titulo": "Planaveg 2026 — categorias de visualização (base final nacional)",
+  "descricao": "Contrato único do planaveg_core para o GeoPackage Planaveg_2026_Categorias_Visualizacao: estrutura do recipiente, hierarquia de tiers, filtros espaciais e quantitativos do relatório técnico, arranjos de implementação e fontes ausentes. O SQL e o Python leem estas regras daqui, com três exceções: o SRS do Albers, registrado também em sql/000_extensions.sql (o init-db confere os dois); as colunas uf e bioma, que as facetas citam pelo nome; e a chave e o rótulo de cada dimensão, escritos em peca_lugar: o município pelo código, com a UF dele, e a bacia pela mesobacia e pelo nome.",
+  "recipiente": {
+    "arquivo_referencia": "Planaveg_2026_Categorias_Visualizacao.gpkg",
+    "application_id": 1196444487,
+    "user_versions": [
+      10400
+    ],
+    "sha256": "0fb67464c8435a74aed29e37b1150e102255894834ff96f472be05273dd6847b",
+    "srid": 100000,
+    "tipo_srs": "projetado",
+    "proj4": "+proj=aea +lat_0=-12 +lon_0=-54 +lat_1=-2 +lat_2=-22 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs +type=crs",
+    "geometria": "MULTIPOLYGON",
+    "coluna_geom": "geom",
+    "coluna_pk": "fid"
+  },
+  "camadas": [
+    {
+      "origem": "Planaveg_2026_Visualizacao_vs22q",
+      "ano_vs": 2022,
+      "rotulo": "VS 2022"
+    },
+    {
+      "origem": "Planaveg_2026_Visualizacao_vs2224q",
+      "ano_vs": 2024,
+      "rotulo": "VS 2024"
+    }
+  ],
+  "colunas": [
+    {
+      "origem": "hierarquia_planaveg",
+      "destino": "hierarquia",
+      "tipo": "text",
+      "anulavel": false,
+      "descricao": "Rótulo do nível da hierarquia Planaveg (Anexo 1) da peça, como recebido."
+    },
+    {
+      "origem": "tier",
+      "destino": "tier",
+      "tipo": "integer",
+      "anulavel": false,
+      "descricao": "Ordem de precedência do nível (1 = Recooperar … 11 = RL)."
+    },
+    {
+      "origem": "categoria",
+      "destino": "categoria",
+      "tipo": "text",
+      "anulavel": true,
+      "descricao": "Condição do CAR nos níveis 9–11 (Habilitados, Analisados, Nao_Analisados); vazio nos demais."
+    },
+    {
+      "origem": "computo",
+      "destino": "computo_recebido_ha",
+      "tipo": "double",
+      "anulavel": false,
+      "descricao": "Total do nível no ano (hectares), repetido em cada peça. O verify confere que é a soma de area_ha do nível."
+    },
+    {
+      "origem": "Area_ha",
+      "destino": "area_ha",
+      "tipo": "double",
+      "anulavel": false,
+      "descricao": "Hectares da peça como recebidos (Albers IBGE). O verify confere contra a área da geometria."
+    },
+    {
+      "origem": "UF",
+      "destino": "uf",
+      "tipo": "text",
+      "anulavel": false,
+      "fora": "FORA",
+      "descricao": "Sigla da UF onde a peça cai; FORA = fora dos limites estaduais."
+    },
+    {
+      "origem": "Bioma",
+      "destino": "bioma",
+      "tipo": "text",
+      "anulavel": false,
+      "fora": "FORA",
+      "descricao": "Bioma IBGE; FORA = fora dos limites do mapa de biomas."
+    },
+    {
+      "origem": "Municipio",
+      "destino": "municipio",
+      "tipo": "text",
+      "anulavel": true,
+      "descricao": "Nome do município como o arquivo o traz: só conferido. O nome publicado é o do IBGE (lugar_municipio)."
+    },
+    {
+      "origem": "cod_municipio",
+      "destino": "cod_municipio",
+      "tipo": "text",
+      "anulavel": false,
+      "descricao": "Código IBGE do município (7 dígitos)."
+    },
+    {
+      "origem": "Bacia",
+      "destino": "bacia",
+      "tipo": "text",
+      "anulavel": false,
+      "descricao": "Bacia hidrográfica (nível mais detalhado do arquivo)."
+    },
+    {
+      "origem": "Bacia_meso",
+      "destino": "bacia_meso",
+      "tipo": "text",
+      "anulavel": false,
+      "descricao": "Mesobacia hidrográfica."
+    },
+    {
+      "origem": "Regiao_Hidrografica",
+      "destino": "regiao_hidrografica",
+      "tipo": "text",
+      "anulavel": false,
+      "descricao": "Região hidrográfica nacional (CNRH)."
+    },
+    {
+      "origem": "CAR",
+      "destino": "car",
+      "tipo": "marca",
+      "marcado": "CAR",
+      "descricao": "A peça está em imóvel do CAR (qualquer condição)."
+    },
+    {
+      "origem": "CAR_Habilitado",
+      "destino": "car_habilitado",
+      "tipo": "marca",
+      "marcado": "Habilitado",
+      "descricao": "Em imóvel do CAR habilitado."
+    },
+    {
+      "origem": "CAR_Analisado",
+      "destino": "car_analisado",
+      "tipo": "marca",
+      "marcado": "Analisado",
+      "descricao": "Em imóvel do CAR analisado."
+    },
+    {
+      "origem": "CAR_Nao_Analisado",
+      "destino": "car_nao_analisado",
+      "tipo": "marca",
+      "marcado": "Não Analisado",
+      "descricao": "Em imóvel do CAR não analisado."
+    },
+    {
+      "origem": "CAR_regularizacao",
+      "destino": "car_regularizacao",
+      "tipo": "marca",
+      "marcado": "Em regularização",
+      "descricao": "Área a recuperar de CAR analisado, em regularização ambiental."
+    },
+    {
+      "origem": "APP_Habilitado",
+      "destino": "app_habilitado",
+      "tipo": "marca",
+      "marcado": "APP - Habilitado",
+      "descricao": "Em APP de CAR habilitado."
+    },
+    {
+      "origem": "APP_Analisado",
+      "destino": "app_analisado",
+      "tipo": "marca",
+      "marcado": "APP - Analisado",
+      "descricao": "Em APP de CAR analisado."
+    },
+    {
+      "origem": "APP_Nao_Analisado",
+      "destino": "app_nao_analisado",
+      "tipo": "marca",
+      "marcado": "APP - Não Analisado",
+      "descricao": "Em APP de CAR não analisado."
+    },
+    {
+      "origem": "RL_Habilitado",
+      "destino": "rl_habilitado",
+      "tipo": "marca",
+      "marcado": "RL - Habilitado",
+      "descricao": "Em Reserva Legal de CAR habilitado."
+    },
+    {
+      "origem": "RL_Analisado",
+      "destino": "rl_analisado",
+      "tipo": "marca",
+      "marcado": "RL - Analisado",
+      "descricao": "Em Reserva Legal de CAR analisado."
+    },
+    {
+      "origem": "RL_Nao_Analisado",
+      "destino": "rl_nao_analisado",
+      "tipo": "marca",
+      "marcado": "RL - Não Analisado",
+      "descricao": "Em Reserva Legal de CAR não analisado."
+    },
+    {
+      "origem": "AUR_Habilitado",
+      "destino": "aur_habilitado",
+      "tipo": "marca",
+      "marcado": "AUR - Habilitado",
+      "descricao": "Em Área de Uso Restrito de CAR habilitado."
+    },
+    {
+      "origem": "AUR_Analisado",
+      "destino": "aur_analisado",
+      "tipo": "marca",
+      "marcado": "AUR - Analisado",
+      "descricao": "Em Área de Uso Restrito de CAR analisado."
+    },
+    {
+      "origem": "AUR_Nao_Analisado",
+      "destino": "aur_nao_analisado",
+      "tipo": "marca",
+      "marcado": "AUR - Não Analisado",
+      "descricao": "Em Área de Uso Restrito de CAR não analisado."
+    },
+    {
+      "origem": "PROJ",
+      "destino": "projeto",
+      "tipo": "marca",
+      "marcado": "PROJ",
+      "descricao": "Em área de projeto de recuperação (qualquer fonte)."
+    },
+    {
+      "origem": "Licenciamento_Ambiental",
+      "destino": "licenciamento",
+      "tipo": "marca",
+      "marcado": "Licenciamento",
+      "descricao": "Em área de recuperação por licenciamento ambiental (Recooperar)."
+    },
+    {
+      "origem": "Reparacao_Danos",
+      "destino": "reparacao_danos",
+      "tipo": "marca",
+      "marcado": "Reparação",
+      "descricao": "Em área de recuperação por reparação de danos (Recooperar)."
+    },
+    {
+      "origem": "Area_Embargada",
+      "destino": "embargo",
+      "tipo": "marca",
+      "marcado": "Embargo",
+      "descricao": "Em área de recuperação por processo de embargo (Recooperar)."
+    },
+    {
+      "origem": "Outras_Areas",
+      "destino": "outras_areas",
+      "tipo": "marca",
+      "marcado": "Outras Areas",
+      "descricao": "Em outras áreas de recuperação do Recooperar."
+    },
+    {
+      "origem": "Embargo_PANGIA",
+      "destino": "embargo_pangia",
+      "tipo": "marca",
+      "marcado": "Embargo PANGIA",
+      "descricao": "Em área embargada do PANGIA (sanções administrativas do IBAMA)."
+    },
+    {
+      "origem": "GEF_Terrestre",
+      "destino": "gef_terrestre",
+      "tipo": "marca",
+      "marcado": "GEF Terrestre",
+      "descricao": "Em área do projeto GEF Terrestre, uma das fontes de Outros projetos."
+    },
+    {
+      "origem": "Restauracao_Ecologica",
+      "destino": "restauracao_ecologica",
+      "tipo": "marca",
+      "marcado": "Restauração Ecológica",
+      "descricao": "Em área de Restauração Ecológica, uma das fontes de Outros projetos."
+    },
+    {
+      "origem": "ORR",
+      "destino": "observatorio",
+      "tipo": "marca",
+      "marcado": "ORR",
+      "descricao": "Em projeto do Observatório da Restauração e Reflorestamento."
+    },
+    {
+      "origem": "Manguezal",
+      "destino": "manguezal",
+      "tipo": "marca",
+      "marcado": "Pró-Manguezal",
+      "descricao": "Em manguezal mapeado pelo Pró-Manguezal."
+    },
+    {
+      "origem": "APA",
+      "destino": "apa",
+      "tipo": "marca",
+      "marcado": "APA",
+      "descricao": "Em Área de Proteção Ambiental."
+    },
+    {
+      "origem": "RPPN",
+      "destino": "rppn",
+      "tipo": "marca",
+      "marcado": "RPPN",
+      "descricao": "Em Reserva Particular do Patrimônio Natural."
+    },
+    {
+      "origem": "UC",
+      "destino": "uc",
+      "tipo": "marca",
+      "marcado": "UC",
+      "fonte": "sobreposicao",
+      "descricao": "Em Unidade de Conservação que não é APA nem RPPN. Vem da sigla UC da Sobreposicao: desde a base de 16/10/2026, a coluna UC marca também as APAs e RPPNs."
+    },
+    {
+      "origem": "UC_federal",
+      "destino": "uc_federal",
+      "tipo": "marca",
+      "marcado": "Federal",
+      "descricao": "Em UC de esfera federal (inclui APA e RPPN)."
+    },
+    {
+      "origem": "UC_estadual",
+      "destino": "uc_estadual",
+      "tipo": "marca",
+      "marcado": "Estadual",
+      "descricao": "Em UC de esfera estadual (inclui APA e RPPN)."
+    },
+    {
+      "origem": "UC_municipal",
+      "destino": "uc_municipal",
+      "tipo": "marca",
+      "marcado": "Municipal",
+      "descricao": "Em UC de esfera municipal (inclui APA e RPPN)."
+    },
+    {
+      "origem": "TI",
+      "destino": "terra_indigena",
+      "tipo": "marca",
+      "marcado": "TI",
+      "descricao": "Em Terra Indígena."
+    },
+    {
+      "origem": "AS_",
+      "destino": "assentamento",
+      "tipo": "marca",
+      "marcado": "AS",
+      "descricao": "Em assentamento rural."
+    },
+    {
+      "origem": "QL",
+      "destino": "quilombola",
+      "tipo": "marca",
+      "marcado": "QL",
+      "descricao": "Em território quilombola."
+    },
+    {
+      "origem": "Sobreposicao",
+      "destino": "sobreposicao",
+      "tipo": "text",
+      "anulavel": true,
+      "descricao": "Concatenação das marcas fundiárias da peça (PROJ, CAR, APA, RPPN, UC, MANG, TI, AS, QL, nessa ordem)."
+    }
+  ],
+  "sobreposicao": [
+    {
+      "marca": "projeto",
+      "sigla": "PROJ"
+    },
+    {
+      "marca": "car",
+      "sigla": "CAR"
+    },
+    {
+      "marca": "apa",
+      "sigla": "APA"
+    },
+    {
+      "marca": "rppn",
+      "sigla": "RPPN"
+    },
+    {
+      "marca": "uc",
+      "sigla": "UC"
+    },
+    {
+      "marca": "manguezal",
+      "sigla": "MANG"
+    },
+    {
+      "marca": "terra_indigena",
+      "sigla": "TI"
+    },
+    {
+      "marca": "assentamento",
+      "sigla": "AS"
+    },
+    {
+      "marca": "quilombola",
+      "sigla": "QL"
+    }
+  ],
+  "hierarquia": [
+    {
+      "tier": 1,
+      "codigo": "recooperar",
+      "grupo": "projetos",
+      "rotulo": "Recooperar (IBAMA)",
+      "titulo": "Recooperar",
+      "cor": "#7f2704"
+    },
+    {
+      "tier": 2,
+      "codigo": "monitorad",
+      "grupo": "projetos",
+      "rotulo": null,
+      "titulo": "MonitoRAD",
+      "ausente": "O arquivo não traz peças de tier 2: a fonte MonitoRAD não foi materializada.",
+      "cor": "#fdae6b"
+    },
+    {
+      "tier": 3,
+      "codigo": "sicar_regularizacao",
+      "grupo": "projetos",
+      "rotulo": "SICAR - Analisado, em regularização ambiental (área a recuperar)",
+      "titulo": "PRADA",
+      "cor": "#a63603"
+    },
+    {
+      "tier": 4,
+      "codigo": "outros_projetos",
+      "grupo": "projetos",
+      "rotulo": "Outros projetos (MMA, ICMBio e demais órgãos)",
+      "titulo": "Projetos de Cooperação MMA",
+      "cor": "#d94801"
+    },
+    {
+      "tier": 5,
+      "codigo": "observatorio",
+      "grupo": "projetos",
+      "rotulo": "Observatório da Restauração (formato público)",
+      "titulo": "Observatório da Restauração e Recuperação",
+      "cor": "#fd8d3c"
+    },
+    {
+      "tier": 6,
+      "codigo": "terra_indigena",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em Terras Indígenas",
+      "titulo": "Terras Indígenas",
+      "cor": "#006d2c"
+    },
+    {
+      "tier": 7,
+      "codigo": "uc",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em Unidades de Conservação (APAs: só áreas públicas)",
+      "titulo": "Unidades de Conservação",
+      "cor": "#31a354"
+    },
+    {
+      "tier": 8,
+      "codigo": "manguezal",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em manguezais (APP - ProManguezal)",
+      "titulo": "Sistemas Costeiros",
+      "cor": "#74c476"
+    },
+    {
+      "tier": 9,
+      "codigo": "app",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em APP (SICAR) - Habilitados",
+      "categoria": "Habilitados",
+      "situacao": "Analisado, em conformidade com a Lei nº 12.651/2012, com ativos e em regularização",
+      "titulo": "Área de Preservação Permanente",
+      "cor": "#08519c"
+    },
+    {
+      "tier": 9,
+      "codigo": "app",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em APP (SICAR) - Analisados",
+      "categoria": "Analisados",
+      "situacao": "Não analisado, ou em análise, ou aguardando retificação",
+      "titulo": "Área de Preservação Permanente",
+      "cor": "#08519c"
+    },
+    {
+      "tier": 9,
+      "codigo": "app",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em APP (SICAR) - Nao Analisados",
+      "categoria": "Nao_Analisados",
+      "situacao": "Não analisado, ou em análise, ou aguardando retificação",
+      "titulo": "Área de Preservação Permanente",
+      "cor": "#08519c"
+    },
+    {
+      "tier": 10,
+      "codigo": "aur",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em AUR (SICAR) - Habilitados",
+      "categoria": "Habilitados",
+      "situacao": "Analisado, em conformidade com a Lei nº 12.651/2012, com ativos e em regularização",
+      "titulo": "Área de Uso Restrito",
+      "cor": "#2171b5"
+    },
+    {
+      "tier": 10,
+      "codigo": "aur",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em AUR (SICAR) - Analisados",
+      "categoria": "Analisados",
+      "situacao": "Não analisado, ou em análise, ou aguardando retificação",
+      "titulo": "Área de Uso Restrito",
+      "cor": "#2171b5"
+    },
+    {
+      "tier": 10,
+      "codigo": "aur",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em AUR (SICAR) - Nao Analisados",
+      "categoria": "Nao_Analisados",
+      "situacao": "Não analisado, ou em análise, ou aguardando retificação",
+      "titulo": "Área de Uso Restrito",
+      "cor": "#2171b5"
+    },
+    {
+      "tier": 11,
+      "codigo": "rl",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em RL (SICAR) - Habilitados",
+      "categoria": "Habilitados",
+      "situacao": "Analisado, em conformidade com a Lei nº 12.651/2012, com ativos e em regularização",
+      "titulo": "Reserva Legal",
+      "cor": "#6baed6"
+    },
+    {
+      "tier": 11,
+      "codigo": "rl",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em RL (SICAR) - Analisados",
+      "categoria": "Analisados",
+      "situacao": "Não analisado, ou em análise, ou aguardando retificação",
+      "titulo": "Reserva Legal",
+      "cor": "#6baed6"
+    },
+    {
+      "tier": 11,
+      "codigo": "rl",
+      "grupo": "vs_protegida",
+      "rotulo": "VS em RL (SICAR) - Nao Analisados",
+      "categoria": "Nao_Analisados",
+      "situacao": "Não analisado, ou em análise, ou aguardando retificação",
+      "titulo": "Reserva Legal",
+      "cor": "#6baed6"
+    }
+  ],
+  "grupos": [
+    {
+      "codigo": "projetos",
+      "titulo": "Projetos de Recuperação da Vegetação Nativa"
+    },
+    {
+      "codigo": "vs_protegida",
+      "titulo": "Vegetação Secundária em Áreas Legalmente Protegidas"
+    }
+  ],
+  "arranjos": [
+    {
+      "codigo": "areas_publicas",
+      "meta_ha": 2000000,
+      "meta_ano": 2030,
+      "cor": "#7fbc41",
+      "titulo": "Recuperação da vegetação nativa em áreas públicas",
+      "criterio": "A vegetação em Terras Indígenas, em Unidades de Conservação (nas APAs, só nas áreas públicas), em RPPNs, em manguezais, em assentamentos rurais e em territórios quilombolas.",
+      "predicado": {
+        "ou": [
+          {
+            "nivel": [
+              "terra_indigena",
+              "uc",
+              "manguezal"
+            ]
+          },
+          {
+            "marca": [
+              "uc",
+              "rppn",
+              "terra_indigena",
+              "assentamento",
+              "quilombola"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "codigo": "app_rl_aur",
+      "meta_ha": 9000000,
+      "meta_ano": 2030,
+      "cor": "#2166ac",
+      "titulo": "Recuperação da vegetação nativa em APP, RL e AUR",
+      "criterio": "A vegetação em Área de Preservação Permanente, Reserva Legal e Área de Uso Restrito dos imóveis rurais do CAR, em qualquer condição do cadastro, e a área a recuperar dos imóveis em regularização ambiental (PRADA).",
+      "predicado": {
+        "ou": [
+          {
+            "nivel": [
+              "sicar_regularizacao",
+              "app",
+              "aur",
+              "rl"
+            ]
+          },
+          {
+            "marca": [
+              "app_habilitado",
+              "app_analisado",
+              "app_nao_analisado",
+              "rl_habilitado",
+              "rl_analisado",
+              "rl_nao_analisado",
+              "aur_habilitado",
+              "aur_analisado",
+              "aur_nao_analisado",
+              "car_regularizacao"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "codigo": "baixa_produtividade",
+      "meta_ha": 1000000,
+      "meta_ano": 2030,
+      "cor": "#e08214",
+      "titulo": "Recuperação da vegetação em áreas rurais consolidadas com sistemas integrados de produção",
+      "criterio": "Projetos de restauração com fins econômicos ou de restauração produtiva (sistemas agroflorestais, integração lavoura-pecuária-floresta e silvicultura de nativas) em áreas rurais consolidadas, fora das áreas públicas e de APP, RL e AUR.",
+      "ausente": "Fica zerado por enquanto: a base não traz as técnicas de restauração com fins econômicos que definem o arranjo.",
+      "predicado": null
+    },
+    {
+      "codigo": "demais_areas",
+      "cor": "#9e9e9e",
+      "titulo": "Demais áreas de projetos",
+      "criterio": "As áreas de projetos de recuperação que não entram em nenhum dos arranjos anteriores. Não tem meta própria.",
+      "predicado": null
+    }
+  ],
+  "filtros": [
+    {
+      "codigo": "embargo_recooperar",
+      "grupo": "Projetos de Recuperação da Vegetação Nativa",
+      "titulo": "Áreas em recuperação por processos de Embargo (Recooperar)",
+      "subtitulo": "Áreas sob sanções administrativas aplicadas pelo IBAMA, no Recooperar",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "embargo"
+        ]
+      },
+      "status": "presente",
+      "cor": "#b2182b"
+    },
+    {
+      "codigo": "reparacao_danos",
+      "grupo": "Projetos de Recuperação da Vegetação Nativa",
+      "titulo": "Áreas em recuperação por processos de Reparação por Danos",
+      "subtitulo": "Áreas sujeitas à reparação por danos ambientais por ilícitos",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "reparacao_danos"
+        ]
+      },
+      "status": "presente",
+      "cor": "#c51b7d"
+    },
+    {
+      "codigo": "licenciamento",
+      "grupo": "Projetos de Recuperação da Vegetação Nativa",
+      "titulo": "Áreas em recuperação por processos de Licenciamento Ambiental",
+      "subtitulo": "Áreas de plantio compensatório por supressão da vegetação",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "licenciamento"
+        ]
+      },
+      "status": "presente",
+      "cor": "#762a83"
+    },
+    {
+      "codigo": "outras_areas_projetos",
+      "grupo": "Projetos de Recuperação da Vegetação Nativa",
+      "titulo": "Outras áreas de projetos não incluídas nas demais categorias",
+      "subtitulo": "Demandas judiciais, conversão de multas, Projetos de Cooperação MMA, Observatório da Restauração e Recuperação, ICMBio e PRADA",
+      "tipo": "ambos",
+      "predicado": {
+        "ou": [
+          {
+            "marca": [
+              "outras_areas",
+              "observatorio",
+              "car_regularizacao"
+            ]
+          },
+          {
+            "nivel": [
+              "sicar_regularizacao",
+              "outros_projetos",
+              "observatorio"
+            ]
+          }
+        ]
+      },
+      "status": "parcial",
+      "nota": "Demandas judiciais e conversão de multas não vêm separadas: estão em Outras_Areas do Recooperar e em Projetos de Cooperação MMA.",
+      "cor": "#fdae61"
+    },
+    {
+      "codigo": "unidade_conservacao",
+      "grupo": "Vegetação Secundária em Áreas Legalmente Protegidas",
+      "titulo": "Unidades de Conservação",
+      "subtitulo": "Nome, Esfera Administrativa, Grupo de Manejo e Categoria de Manejo",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "uc",
+          "apa",
+          "rppn"
+        ]
+      },
+      "status": "parcial",
+      "nota": "Só a esfera (federal, estadual, municipal) e o tipo (UC, APA, RPPN) vêm no arquivo; nome, grupo e categoria de manejo não.",
+      "cor": "#1b7837"
+    },
+    {
+      "codigo": "terra_indigena",
+      "grupo": "Vegetação Secundária em Áreas Legalmente Protegidas",
+      "titulo": "Terras Indígenas",
+      "subtitulo": "Nome, Povos Indígenas, Fase do Procedimento Demarcatório",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "terra_indigena"
+        ]
+      },
+      "status": "parcial",
+      "nota": "Só a marca de TI vem no arquivo; nome, povos e fase não.",
+      "cor": "#8c510a"
+    },
+    {
+      "codigo": "arranjo_app_rl_aur",
+      "grupo": "Arranjos de Implementação do Planaveg",
+      "titulo": "Recuperação da vegetação nativa em APP, RL e AUR",
+      "tipo": "ambos",
+      "predicado": {
+        "arranjo": [
+          "app_rl_aur"
+        ]
+      },
+      "status": "presente",
+      "cor": "#2166ac"
+    },
+    {
+      "codigo": "arranjo_baixa_produtividade",
+      "grupo": "Arranjos de Implementação do Planaveg",
+      "titulo": "Recuperação da vegetação em áreas rurais consolidadas com sistemas integrados de produção",
+      "tipo": "ambos",
+      "predicado": {
+        "arranjo": [
+          "baixa_produtividade"
+        ]
+      },
+      "status": "vazio",
+      "nota": "Fica zerado por enquanto: a base não traz as técnicas de restauração com fins econômicos que definem o arranjo.",
+      "cor": "#e08214"
+    },
+    {
+      "codigo": "arranjo_areas_publicas",
+      "grupo": "Arranjos de Implementação do Planaveg",
+      "titulo": "Recuperação da vegetação nativa em áreas públicas",
+      "tipo": "ambos",
+      "predicado": {
+        "arranjo": [
+          "areas_publicas"
+        ]
+      },
+      "status": "presente",
+      "cor": "#7fbc41"
+    },
+    {
+      "codigo": "manguezal",
+      "grupo": "Limites Ecológicos provenientes de dados oficiais",
+      "titulo": "Ecossistemas: Manguezais (Pró-Manguezal)",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "manguezal"
+        ]
+      },
+      "status": "presente",
+      "nota": "O tema conta todo o manguezal mapeado. A categoria Sistemas Costeiros conta só o manguezal fora de Terras Indígenas e Unidades de Conservação, que vêm antes na hierarquia, por isso é menor.",
+      "cor": "#35978f"
+    },
+    {
+      "codigo": "assentamento",
+      "grupo": "Categorias Fundiárias",
+      "titulo": "Assentamentos Rurais",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "assentamento"
+        ]
+      },
+      "status": "presente",
+      "cor": "#bf812d"
+    },
+    {
+      "codigo": "quilombola",
+      "grupo": "Categorias Fundiárias",
+      "titulo": "Territórios Quilombolas",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "quilombola"
+        ]
+      },
+      "status": "presente",
+      "cor": "#8073ac"
+    },
+    {
+      "codigo": "fundiario_terra_indigena",
+      "grupo": "Categorias Fundiárias",
+      "titulo": "Terras Indígenas",
+      "tipo": "quantitativo",
+      "predicado": {
+        "marca": [
+          "terra_indigena"
+        ]
+      },
+      "status": "presente",
+      "cor": "#8c510a"
+    },
+    {
+      "codigo": "fundiario_uc",
+      "grupo": "Categorias Fundiárias",
+      "titulo": "Unidades de Conservação",
+      "tipo": "quantitativo",
+      "predicado": {
+        "marca": [
+          "uc",
+          "apa",
+          "rppn"
+        ]
+      },
+      "status": "presente",
+      "cor": "#1b7837"
+    },
+    {
+      "codigo": "car",
+      "grupo": "Categorias Fundiárias",
+      "titulo": "Cadastro Ambiental Rural",
+      "tipo": "ambos",
+      "predicado": {
+        "marca": [
+          "car"
+        ]
+      },
+      "status": "presente",
+      "cor": "#6baed6"
+    }
+  ],
+  "dimensoes": [
+    {
+      "codigo": "uf",
+      "grupo": "Limites Administrativos",
+      "titulo": "Estado"
+    },
+    {
+      "codigo": "municipio",
+      "grupo": "Limites Administrativos",
+      "titulo": "Município"
+    },
+    {
+      "codigo": "bacia",
+      "grupo": "Limites Administrativos",
+      "titulo": "Bacia Hidrográfica"
+    },
+    {
+      "codigo": "bacia_meso",
+      "grupo": "Limites Administrativos",
+      "titulo": "Mesobacia Hidrográfica"
+    },
+    {
+      "codigo": "regiao_hidrografica",
+      "grupo": "Limites Administrativos",
+      "titulo": "Região Hidrográfica"
+    },
+    {
+      "codigo": "bioma",
+      "grupo": "Limites Ecológicos provenientes de dados oficiais",
+      "titulo": "Biomas (IBGE)"
+    }
+  ],
+  "fontes_ausentes": [
+    {
+      "codigo": "monitorad",
+      "grupo": "Cômputo Planaveg",
+      "descricao": "Nível 2 (MonitoRAD) sem peças no arquivo."
+    },
+    {
+      "codigo": "areas_prioritarias_conservacao",
+      "grupo": "Limites Administrativos",
+      "descricao": "Áreas prioritárias para conservação: sem atributo nem malha."
+    },
+    {
+      "codigo": "areas_prioritarias_recuperacao",
+      "grupo": "Limites Administrativos",
+      "descricao": "Áreas prioritárias para recuperação: sem atributo nem malha."
+    },
+    {
+      "codigo": "desertificacao",
+      "grupo": "Limites Administrativos",
+      "descricao": "Áreas suscetíveis de desertificação: sem atributo nem malha."
+    },
+    {
+      "codigo": "fitofisionomias",
+      "grupo": "Limites Ecológicos provenientes de dados oficiais",
+      "descricao": "Fitofisionomias IBGE: sem atributo nem malha."
+    },
+    {
+      "codigo": "uc_atributos",
+      "grupo": "Vegetação Secundária em Áreas Legalmente Protegidas",
+      "descricao": "Nome, grupo e categoria de manejo das UCs."
+    },
+    {
+      "codigo": "ti_atributos",
+      "grupo": "Vegetação Secundária em Áreas Legalmente Protegidas",
+      "descricao": "Nome, povos indígenas e fase do procedimento demarcatório das TIs."
+    },
+    {
+      "codigo": "malhas_territoriais",
+      "grupo": "Limites Administrativos",
+      "descricao": "Polígonos de UF, município, bacia e bioma: o arquivo traz só o atributo da peça, não a malha."
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "perf": "error",
+    "suspicious": "error"
+  },
+  "plugins": ["import", "jsx-a11y", "react", "typescript", "vitest"],
+  "rules": {
+    "import/no-cycle": "error",
+    "import/no-unassigned-import": "off",
+    "react/react-in-jsx-scope": "off"
+  },
+  "overrides": [
+    {
+      "files": ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["apps/**", "**/apps/**"],
+                "message": "A aplicação web não pode importar outra aplicação."
+              },
+              {
+                "group": ["@/modules/*/*"],
+                "message": "Importe um módulo pelo index dele (@/modules/<módulo>): o resto é interno ao módulo."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/web/src/shared/**/*.ts", "apps/web/src/shared/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["apps/**", "**/apps/**"],
+                "message": "A aplicação web não pode importar outra aplicação."
+              },
+              {
+                "group": ["@/modules/**", "@/app/**", "@/routes/**"],
+                "message": "O shared não depende de módulos, da casca da aplicação nem das rotas."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/web/src/modules/**/*.ts", "apps/web/src/modules/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["apps/**", "**/apps/**"],
+                "message": "A aplicação web não pode importar outra aplicação."
+              },
+              {
+                "group": ["@/modules/*/*"],
+                "message": "Importe um módulo pelo index dele (@/modules/<módulo>): o resto é interno ao módulo."
+              },
+              {
+                "group": ["@/app/**", "@/routes/**"],
+                "message": "Os módulos não dependem da casca da aplicação nem das rotas."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/cartography/src/**/*.ts", "packages/cartography/src/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["apps/**", "**/apps/**"],
+                "message": "O mapa não depende de aplicações."
+              },
+              {
+                "group": ["@sinaveg/web-contracts", "@sinaveg/ui"],
+                "message": "O mapa não depende dos contratos web nem da UI."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/ui/src/**/*.ts", "packages/ui/src/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["apps/**", "**/apps/**", "src/**", "**/src/**", "**/auth/**"],
+                "message": "A biblioteca visual compartilha somente apresentação segura."
+              },
+              {
+                "group": ["@sinaveg/web-contracts"],
+                "message": "A UI não depende dos contratos web."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/web-contracts/src/**/*.ts", "packages/web-contracts/src/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["apps/**", "**/apps/**", "src/**", "**/src/**", "**/auth/**"],
+                "message": "Contratos web não dependem de aplicações ou estado restrito."
+              },
+              {
+                "group": ["@sinaveg/ui"],
+                "message": "Contratos web não dependem da UI."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

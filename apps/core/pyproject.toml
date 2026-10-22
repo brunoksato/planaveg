@@ -1,0 +1,88 @@
+[project]
+name = "planaveg-core"
+version = "0.9.0"
+description = "Recebe o GeoPackage Planaveg, modela no PostgreSQL/PostGIS e publica no GeoServer (WMS, WFS, estilos)"
+requires-python = ">=3.13,<3.15"
+dependencies = [
+  "psycopg[binary]>=3.2",
+]
+
+[project.scripts]
+planaveg-core = "planaveg_core.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project.optional-dependencies]
+dev = [
+  "import-linter>=2.1",
+  "mypy>=1.14",
+  "pytest>=8.3",
+  "ruff>=0.9",
+  "vulture>=2.16",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/planaveg_core"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+markers = [
+  "integration: usa o PostGIS de DATABASE_URL (o banco local carregado); escreve só em transações desfeitas, num banco de teste que cria e apaga ou num papel de teste que apaga; o init-db do banco de teste regrava o papel de leitura, que é do servidor inteiro, com a senha do ambiente, como qualquer init-db",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "B", "C4", "UP", "SIM", "PERF", "PL", "RUF", "S",
+  "ARG", "PIE", "PGH", "FURB", "ISC", "LOG", "G", "T20", "C90",
+]
+# Tipografia legítima em textos em português (docstrings e descrições).
+allowed-confusables = ["×", "–"]
+
+# Função com mais de dez caminhos se divide (o equivalente do "componente gigante" no portal).
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004"]
+"src/planaveg_core/cli/**" = ["T201"]
+
+# Código que ninguém usa (`make check` e CI). Só `src`: uma função que só os testes chamam também
+# aparece, porque o core nunca a executa. `autocommit` é uma propriedade do psycopg: o core a
+# escreve, e o driver a lê.
+[tool.vulture]
+paths = ["src"]
+ignore_names = ["autocommit"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["src", "tests"]
+
+[tool.importlinter]
+root_package = "planaveg_core"
+
+[[tool.importlinter.contracts]]
+name = "Camadas do core: cada pacote só importa os de baixo"
+type = "layers"
+layers = [
+  "planaveg_core.cli",
+  "planaveg_core.geoserver",
+  "planaveg_core.carga | planaveg_core.conferencia | planaveg_core.cache",
+  "planaveg_core.banco",
+  "planaveg_core.publicacao",
+  "planaveg_core.estilos | planaveg_core.gpkg",
+  "planaveg_core.contrato",
+  "planaveg_core.rest",
+  "planaveg_core.config",
+  "planaveg_core.errors | planaveg_core.etapas",
+]

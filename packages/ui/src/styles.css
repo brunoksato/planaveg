@@ -1,0 +1,174 @@
+@import "tailwindcss";
+/* Inter servida pelo próprio portal (sem fonte externa): números tabulares e boa leitura em tela. */
+@import "@fontsource-variable/inter";
+@source "./";
+/* O mapa mora em outro pacote: as classes dele também entram. */
+@source "../../cartography/src";
+
+/* =========================================================
+   SINAVEG · Design tokens (Tailwind v4 + shadcn)
+   Inspiração: portais ambientais institucionais (TerraBrasilis/INPE):
+   topo escuro verde-floresta, superfícies claras, acento verde, dados
+   em tabelas densas e cartões com hairline. Sem fontes externas (CSP): a Inter vem do pacote.
+   Texto do público geral: corpo de 16px e nada abaixo de 13px (`text-xs`).
+   ========================================================= */
+@theme {
+  --font-sans:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-background: #f4f7f5;
+  --color-foreground: #12211b;
+  --color-card: #ffffff;
+  --color-card-foreground: #12211b;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #12211b;
+  --color-primary: #0b5d3b;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #e7efe9;
+  --color-secondary-foreground: #12211b;
+  --color-muted: #eef3f0;
+  --color-muted-foreground: #5b6d66;
+  --color-accent: #e1f2e8;
+  --color-accent-foreground: #0b5d3b;
+  --color-destructive: #b42318;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #d8e2dc;
+  --color-input: #cfdad4;
+  --color-ring: #1d9a5c;
+
+  /* Superfícies institucionais */
+  --color-header: #0c3b2b;
+  --color-header-foreground: #eef7f1;
+  --color-header-muted: #a9c8b8;
+  --color-footer: #0a2d22;
+  --color-footer-foreground: #d4e5db;
+
+  /* Estados */
+  --color-success: #1d7a46;
+  --color-success-soft: #dcf3e5;
+  --color-warning: #9a5b00;
+  --color-warning-soft: #fdf0d5;
+  --color-danger: #b42318;
+  --color-danger-soft: #fde4e1;
+  --color-info: #1d4ed8;
+  --color-info-soft: #e2eafc;
+  --color-neutral: #4b5b55;
+  --color-neutral-soft: #e9eeeb;
+
+  /* Menor texto do portal: 13px (o padrão do Tailwind é 12px). */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: calc(1.125 / 0.8125);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  --shadow-xs: 0 1px 1px rgba(18, 33, 27, 0.04);
+  --shadow-sm: 0 1px 2px rgba(18, 33, 27, 0.06), 0 1px 1px rgba(18, 33, 27, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(18, 33, 27, 0.08), 0 2px 4px -2px rgba(18, 33, 27, 0.04);
+
+  --header-h: 3.5rem;
+}
+
+/*
+ * O cabeçalho do portal leva o nome oficial numa linha embaixo da faixa abaixo de `xl`
+ * (`SiteHeader`): ali a altura dele é a faixa mais essa linha (1.75rem de `lg` em diante, onde o
+ * mapa calcula a altura da lateral com ela).
+ */
+@media (width < 80rem) {
+  :root {
+    --header-h: 5.25rem;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background: var(--color-background);
+  }
+  body {
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-foreground);
+    letter-spacing: -0.01em;
+  }
+  code,
+  pre {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+  }
+  :where(button, a, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+@layer components {
+  .sinaveg-container {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .sinaveg-container {
+      padding-inline: 1.5rem;
+    }
+  }
+  .eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+  .topnav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 100%;
+    padding-inline: 0.75rem;
+    border-bottom: 2px solid transparent;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--color-header-muted);
+    transition:
+      color 120ms ease,
+      border-color 120ms ease,
+      background 120ms ease;
+    white-space: nowrap;
+  }
+  .topnav-link:hover {
+    color: var(--color-header-foreground);
+    background: rgb(255 255 255 / 0.06);
+  }
+  .topnav-link[aria-current="page"],
+  .topnav-link[data-active="true"] {
+    color: var(--color-header-foreground);
+    border-bottom-color: var(--color-ring);
+  }
+  .topnav-link svg {
+    opacity: 0.8;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}

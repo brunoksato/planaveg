@@ -52,7 +52,7 @@ o gerou.
 | Atributo novo que o portal usa | `inspect` | o código, uma migração e o portal | `run-all` | [S](#s-atributo-novo-que-precisa-entrar) |
 | Outra versão do GeoPackage | `inspect` | `recipiente` | `run-all` | [P](#p-versão-do-geopackage) |
 | Polígono no lugar de multipolígono | `inspect` | `recipiente` | `run-all` | [Q](#q-outro-sistema-de-coordenadas-ou-outra-geometria) |
-| Outro sistema de coordenadas | `inspect` | o código e uma migração | `run-all` | [Q](#q-outro-sistema-de-coordenadas-ou-outra-geometria) |
+| Outro sistema de coordenadas | `inspect` | o código da carga e do `inspect` | `run-all` | [Q](#q-outro-sistema-de-coordenadas-ou-outra-geometria) |
 
 **Nos valores: rótulos, marcas e lugares**
 
@@ -925,8 +925,9 @@ não são uma base de peças.
 
 **Sistema de coordenadas:** o Albers do IBGE (SRS 100000) está em vários lugares: no contrato
 (`srid` e `proj4`), em `sql/000_extensions.sql`, no tipo das colunas de geometria (migração) e no
-SQL da carga. Peça ao produtor o mesmo sistema. Se não der, a mudança é de código, com uma migração
-nova.
+SQL da carga. Peça ao produtor o mesmo sistema. Se não der, a mudança é de código. O caminho mais
+curto é a carga converter a geometria para o Albers, com o `inspect` aceitando o sistema novo: o
+banco fica como está. Guardar outro sistema no banco pediria também uma migração.
 
 **Exemplo de teste:** com `POLYGON`, o `inspect` parou com
 `gpkg_geometria_inesperada: Planaveg_2026_Visualizacao_vs2224q: geom POLYGON`. Com

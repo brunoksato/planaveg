@@ -128,5 +128,8 @@ passo 2: ele derruba as conexões abertas, como as do GeoServer. O
 
 - [Resumo do código](./docs/resumo-do-codigo.md): a modelagem do banco e a base de código, com o
   que não quebrar.
+- [Base nova](./docs/base-nova.md): o passo a passo quando chega um GeoPackage novo, da conferência
+  à produção, inclusive quando a estrutura muda, e quando só o contrato muda (um filtro, um arranjo,
+  um título), com um exemplo para cada caso.
 - [README do core](./apps/core/README.md): os comandos do `planaveg_core`.
 - [`CONTEXT.md`](./CONTEXT.md): os termos do domínio.

@@ -1,6 +1,7 @@
 # GeoPackages locais
 
-Os GeoPackages ficam nesta pasta e não vão para o Git.
+Os GeoPackages ficam nesta pasta e não vão para o Git. Para trocar a base por um arquivo novo, siga
+o [passo a passo da base nova](../base-nova.md).
 
 ## `Planaveg_2026_Categorias_Visualizacao.gpkg`
 

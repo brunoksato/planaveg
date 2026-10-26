@@ -80,8 +80,8 @@ conferência.
   em `GEOSERVER_PG_PASSWORD`. As outras variáveis estão em
   [`config.py`](../apps/core/src/planaveg_core/config.py). Depois, `planaveg-core semear` prepara o
   cache de tiles.
-- **Base nova:** rode o `load` de novo, com o arquivo novo. Ele troca a base inteira numa transação
-  só, e até o fim quem lê vê a anterior.
+- **Base nova:** rode o `load` de novo, com o arquivo novo ([passo a passo](../docs/base-nova.md)).
+  Ele troca a base inteira numa transação só, e até o fim quem lê vê a anterior.
 - **Código novo:** estes arquivos criam o banco do zero. Num banco que já existe, quem atualiza é o
   `planaveg-core init-db`: ele aplica as migrações novas e refaz as funções, as views e as regras,
   sem perder a carga. Não rode os arquivos de novo num banco que já tem a estrutura.

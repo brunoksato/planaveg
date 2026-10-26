@@ -526,7 +526,9 @@ vazio por versão vigente nesse diretório, para o servidor web saber o que pode
 
 **A ordem das etapas numa base nova:** `run-all` (`init-db`, `load`, `verify`), depois `geoserver`,
 depois `semear` e `aquecer`. O `geoserver` calcula as versões com a carga, então vem depois dela. O
-`semear` vem depois do `geoserver`, que esvazia o cache quando a versão muda.
+`semear` vem depois do `geoserver`, que esvazia o cache quando a versão muda. O passo a passo, do
+arquivo recebido à produção e com cada mudança de estrutura, está em
+[`base-nova.md`](./base-nova.md).
 
 ## O core: GeoServer, versões e cache
 

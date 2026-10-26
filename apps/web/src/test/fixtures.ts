@@ -195,11 +195,28 @@ export const DIMENSOES: CatalogoDimensao[] = [
   { ordem: 2, dimensao: "municipio", grupo: "Limites Administrativos", titulo: "Município" },
 ];
 
+/** Quatro das fontes do contrato, na ordem dele: o grupo das malhas reaparece depois de outro. */
 export const AUSENTES: FonteAusente[] = [
   {
     codigo: "monitorad",
     grupo: "Cômputo Planaveg",
     descricao: "Nível 2 (MonitoRAD) sem peças no arquivo.",
+  },
+  {
+    codigo: "areas_prioritarias_conservacao",
+    grupo: "Limites Administrativos",
+    descricao: "Áreas prioritárias para conservação: sem atributo nem malha.",
+  },
+  {
+    codigo: "fitofisionomias",
+    grupo: "Limites Ecológicos provenientes de dados oficiais",
+    descricao: "Fitofisionomias IBGE: sem atributo nem malha.",
+  },
+  {
+    codigo: "malhas_territoriais",
+    grupo: "Limites Administrativos",
+    descricao:
+      "Polígonos de UF, município, bacia e bioma: o arquivo traz só o atributo da peça, não a malha.",
   },
 ];
 

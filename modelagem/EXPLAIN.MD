@@ -129,7 +129,7 @@ Os filtros não têm prioridade. A peça guarda, na coluna `temas`, todos os que
 
 ### O que falta aparece como ausente
 
-Nada é deduzido. O nível MonitoRAD e o arranjo de baixa produtividade têm `motivo_ausencia`, e o portal os mostra como ausentes, com 0 ha. A lista do que o relatório pede e a base não traz fica em `contrato_fonte_ausente`, como as malhas territoriais e os atributos de UC e TI. Ela sai na view `fonte_ausente`; o portal a busca, mas ainda não a mostra.
+Nada é deduzido. O nível MonitoRAD e o arranjo de baixa produtividade têm `motivo_ausencia`, e o portal os mostra como ausentes, com 0 ha. A lista do que o relatório pede e a base não traz fica em `contrato_fonte_ausente`, como as malhas territoriais e os atributos de UC e TI. Ela sai na view `fonte_ausente`, e o portal a mostra nos metadados de Acesso aos dados.
 
 Uma exceção à regra "tudo no contrato": a esfera e o tipo de UC (federal, estadual, municipal; APA, RPPN, outras) são montados na view a partir dos nomes das marcas.
 

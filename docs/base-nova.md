@@ -1186,10 +1186,14 @@ com `nivel_com_grupo_desconhecido: cooperacao`.
 ### Z. Fonte ausente e recorte novo
 
 **Fonte ausente:** `fontes_ausentes` lista o que o relatório pede e a base não traz, com `codigo`,
-`grupo` e `descricao`. A lista vai para `fonte_ausente`, publicada no GeoServer; o portal a carrega
-com o catálogo, mas hoje não a mostra em nenhuma tela. Uma entrada nova só pede `init-db` e
-`geoserver`. Quando a fonte passa a vir, a entrada sai, como a do MonitoRAD no caso
+`grupo` e `descricao`. A lista vai para `fonte_ausente`, publicada no GeoServer. Uma entrada nova só
+pede `init-db` e `geoserver`. Quando a fonte passa a vir, a entrada sai, como a do MonitoRAD no caso
 [F](#f-nível-novo).
+
+**Portal:** a lista aparece em Acesso aos dados, nos metadados, no bloco "O que a base ainda não
+traz". As fontes ficam juntas por `grupo`, na ordem do contrato. O nome do grupo vem de
+`GRUPOS_DE_FILTRO`, em `shared/utils/glossario.ts`, como na tabela dos temas. Um grupo que não está
+lá aparece com o nome do contrato. Com a lista vazia, o bloco some.
 
 **Exemplo de teste:** esta entrada apareceu em `fonte_ausente` depois do `init-db`:
 

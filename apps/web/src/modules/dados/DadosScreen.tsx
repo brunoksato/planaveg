@@ -12,6 +12,7 @@ import { PartesDoAcesso } from "./components/PartesDoAcesso";
 import { VisaoBaixar } from "./components/VisaoBaixar";
 import { VisaoCamadas } from "./components/VisaoCamadas";
 import { VisaoFiltros } from "./components/VisaoFiltros";
+import { VisaoFontesAusentes } from "./components/VisaoFontesAusentes";
 import { VisaoMetodologia } from "./components/VisaoMetodologia";
 import { VisaoServicos } from "./components/VisaoServicos";
 import { VisaoSobreABase } from "./components/VisaoSobreABase";
@@ -88,6 +89,7 @@ export function DadosScreen({
                 <VisaoSobreABase dados={dados} />
                 <VisaoMetodologia dados={dados} />
                 <VisaoFiltros dados={dados} />
+                <VisaoFontesAusentes dados={dados} />
               </>
             ) : null}
             {parte.id === "servicos" ? <VisaoServicos geoserver={geoserver} /> : null}

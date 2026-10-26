@@ -28,7 +28,8 @@ Duas regras do produto aparecem em todo o código:
   Os temas (filtros do relatório) se sobrepõem e nunca são somados num total.
 - **O que a base não traz aparece como ausente.** Nada é deduzido. O contrato diz por que um
   nível ou um arranjo falta (`motivo_ausencia`), e o portal o mostra como ausente. A lista das
-  fontes que faltam sai na view `fonte_ausente`: o portal a busca, mas ainda não a mostra.
+  fontes que faltam sai na view `fonte_ausente`, e o portal a mostra nos metadados de Acesso aos
+  dados.
 
 ## Mapa do repositório
 
@@ -701,7 +702,8 @@ total. O CSV de cada cartão é montado no navegador, igual ao da tela
 quatro partes: o lugar escolhido, os filtros, os números e o link para o mesmo lugar no mapa.
 
 **Acesso aos dados** ([`modules/dados/`](../apps/web/src/modules/dados/)). Só lê o catálogo. Os
-downloads são links WFS do próprio GeoServer, com `v=`. As partes da página ficam em `SECOES`.
+downloads são links WFS do próprio GeoServer, com `v=`. As partes da página ficam em `SECOES`. Nos
+metadados, `VisaoFontesAusentes` mostra a `fonte_ausente` por grupo e some quando a lista vem vazia.
 
 **Visão geral** ([`modules/visao-geral/`](../apps/web/src/modules/visao-geral/)). Lê
 `quantitativo_nivel` e `quantitativo_arranjo` inteiras.
@@ -721,8 +723,8 @@ também aparece em texto e numa tabela.
 Os testes guardam só o que falharia em silêncio ou quebraria o acordo entre as partes: o
 contrato que falha fechado, as colunas do modelo contra o JSON, as migrações, o que o GeoServer
 pode ler, a conferência, a carga numa transação só, a `modelagem/` em dia, as versões, a chave do
-cache, o CQL dos filtros, as somas das facetas e as armadilhas do Leaflet. Texto de tela, nomes e
-cópia do JSON não têm teste.
+cache, o CQL dos filtros, as somas das facetas, a `fonte_ausente` nos metadados e as armadilhas do
+Leaflet. Texto de tela, nomes e cópia do JSON não têm teste.
 
 **Core sem banco.** Usa o contrato de verdade: mudar o JSON muda os testes, de propósito. Os
 falsos ficam em [`tests/`](../apps/core/tests/): `geoserver_falso.py` substitui

@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+*.py[cod]
+coverage/
+dist/
+node_modules/
+.data/
+.vscode/
+.tanstack/
+docs/gpkg/*.gpkg
+.scratch/backups/*.dump
+.scratch/backups/*.tar.gz

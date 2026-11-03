@@ -1,135 +1,173 @@
-# SINAVEG / Planaveg
+# Modelagem nova
 
-Portal público que mostra a recuperação da vegetação nativa no Brasil, com mapa, painel de números
-e dados abertos. Tudo sai da base final do Planaveg, o GeoPackage
-`Planaveg_2026_Categorias_Visualizacao.gpkg`.
+Quatro tabelas e onze views. O GeoPackage do Planaveg entra na tabela `area_mapeada`, e o
+PostgreSQL calcula sozinho o arranjo de cada área. As tabelas `nivel`, `arranjo` e `tema` dizem o
+que é cada nível, arranjo e tema. As onze views juntam as duas coisas e dão os números do
+relatório. O GeoServer publica `area_mapeada` como mapa e o resto como tabelas.
 
-Os números do portal são uma **Estimativa Técnica**. Eles só viram **Resultado Oficial Planaveg**
-quando entram num relatório aprovado pelo Plenário da Conaveg e publicado pelo MMA, ou quando são
-reconhecidos formalmente de outro jeito.
+```
+1_tabelas.sql ──▶ nivel, arranjo, tema   (as referências: 11 níveis, 4 arranjos, 15 temas)
+              └─▶ area_mapeada           (vazia)
 
-## Como está organizado
+GeoPackage ── 3_carga.py ──▶ area_mapeada   (as áreas do arquivo; o arranjo, a coluna calcula)
 
-```text
-GeoPackage final ─► planaveg_core (apps/core) ─► PostGIS ─► GeoServer ─► portal (apps/web)
-                    load · verify · geoserver ·              WMTS (tiles em cache)
-                    semear                                   WMS (clique, município)
-                                                             WFS (tabelas, downloads)
+2_views.sql ──▶ 11 views        (area_mapeada + referências = os números do relatório)
+
+GeoServer ──▶ area_mapeada como mapa; as views, nivel, arranjo e tema como tabelas
 ```
 
-- `apps/core`: o planaveg_core, em Python. Lê o GeoPackage, confere contra o contrato
-  `categorias.v1.json`, carrega no PostGIS, publica camadas, estilos e tabelas no GeoServer e gera
-  o cache de tiles. Tem projeto `uv` próprio e um [README](./apps/core/README.md).
-- `apps/web`: o portal em React, com Visão geral, Mapa, Painel e Acesso aos dados. Não tem API
-  própria e lê tudo do GeoServer.
-- `packages/`: `ui` (o design system), `cartography` (o mapa em Leaflet) e `web-contracts` (os
-  tipos das views publicadas).
-- `modelagem/`: o banco em SQL puro, gerado pelo core, em quatro arquivos na ordem de aplicar: as
-  tabelas, as funções, as views e os dados de referência. O [README de lá](./modelagem/README.md)
-  ensina a criar o banco com eles e a carregar o GeoPackage.
+Os desenhos estão em [diagramas.md](diagramas.md): o diagrama lógico das tabelas, de onde cada
+view lê, os fluxogramas de montar o banco e da carga, e a regra do arranjo.
 
-## Rodar localmente
+## Os arquivos
 
-Você precisa de Docker com Compose, Python 3.13, uv, Node.js 26 e pnpm 11.9. O GeoPackage não vai
-para o Git e fica em `docs/gpkg/` (veja o [README de lá](./docs/gpkg/README.md)). O
-[`compose.yaml`](./compose.yaml) tem o ambiente inteiro: o banco, o GeoServer e o portal.
+| Arquivo | O que faz | Quando roda |
+| --- | --- | --- |
+| `1_tabelas.sql` | cria as tabelas `nivel`, `arranjo`, `tema` e `area_mapeada` | uma vez, num banco vazio |
+| `2_views.sql` | cria as onze views com os números do relatório | uma vez, depois do 1 |
+| `3_carga.py` | troca o conteúdo de `area_mapeada` pelo GeoPackage | a cada GeoPackage novo |
+
+## O que fica no banco
+
+| Objeto | O que é |
+| --- | --- |
+| `area_mapeada` | uma linha por área do GeoPackage, nos dois anos (2022 e 2024): as colunas do arquivo, com nomes claros, o arranjo e o desenho |
+| `nivel` | os 11 níveis da hierarquia: `id` (o número, de 1 a 11), `nome` e `grupo` |
+| `arranjo` | os 4 arranjos de implementação: `slug` (o código, como `areas_publicas`), `ordem` (a prioridade), `nome` e `meta_ha` (a meta até 2030) |
+| `tema` | os 15 temas (filtros) do relatório: `slug` (o código, como `car`), `ordem`, `grupo` e `nome` |
+| `computo_por_nivel` | o cômputo por linha da hierarquia (Anexo 1) |
+| `computo_por_arranjo` | o cômputo por arranjo, com a meta (Anexo 2) |
+| `computo_por_tema` | as áreas de cada um dos 15 filtros do relatório |
+| `computo_por_uf`, `computo_por_municipio`, `computo_por_bioma`, `computo_por_regiao_hidrografica`, `computo_por_mesobacia`, `computo_por_bacia` | o cômputo de cada lugar, aberto por nível e arranjo: para o total de um lugar, some as linhas dele |
+| `computo_por_esfera_uc` | as áreas em UC federal, estadual, municipal e em qualquer UC; as esferas se sobrepõem, não some |
+| `comparacao_entre_anos` | o cômputo de cada ano ao lado do anterior, com a diferença: o total, cada nível, cada arranjo e cada tema |
+
+`nivel`, `arranjo` e `tema` são tabelas de referência: guardam uma vez o que é cada nível, cada
+arranjo e cada tema. A chave de cada uma é o `id` (o número do nível) ou o `slug` (um código curto
+em texto, sem acento nem espaço). `area_mapeada` aponta para elas pela coluna `nivel` (o `id` do
+nível) e pela coluna `arranjo` (o `slug` do arranjo). A regra de quem entra em cada um fica no
+código: o nível vem do arquivo; o arranjo é uma coluna gerada de `area_mapeada`, que o PostgreSQL
+calcula ao gravar cada área (`GENERATED ALWAYS AS (CASE ...) STORED`, no `1_tabelas.sql`); e o
+tema é calculado pela view `computo_por_tema`.
+
+As views não guardam nada: somam `area_mapeada` na hora, então não há nada para recalcular depois
+de uma carga.
+
+## As palavras
+
+- **Vegetação secundária (VS):** vegetação nativa que voltou a crescer onde já houve desmatamento,
+  mapeada em 2022 e em 2024. Cada ano é uma camada do arquivo; os anos não se somam.
+- **Área:** uma linha do arquivo. Junta num multipolígono os polígonos que têm tudo igual (mesmo
+  nível, município, bacia, bioma e sobreposições). Em 2024 são 70.739.
+- **Nível:** a mesma área pode estar numa Terra Indígena, num imóvel do CAR e num projeto. Para não
+  contá-la três vezes, ela conta só no primeiro de 11 níveis que se aplica (1 Recooperar ... 11
+  Reserva Legal). A **linha da hierarquia** é o nível com a situação do CAR, em APP, AUR e RL.
+- **Cômputo:** quanto conta para a meta do Planaveg (12 milhões de ha até 2030): a soma das áreas.
+- **Marca (`in_`):** `in_` = "está em". `in_car = true` quer dizer que a área está em imóvel do CAR.
+  O nível diz onde a área conta; as marcas, onde mais ela está.
+- **Arranjo:** as formas de cumprir a meta: áreas públicas (2 milhões de ha), APP, RL e AUR (9
+  milhões) e áreas rurais produtivas (1 milhão). O que não cai em nenhum fica em "demais áreas".
+- **Tema:** um recorte do relatório, como "tudo em UC" ou "tudo no CAR".
+
+**Nível e arranjo somam** (cada área está em um só). **Marcas e temas nunca somam** (uma área está
+em vários).
+
+## Como rodar
+
+Precisa de PostgreSQL com PostGIS e do [uv](https://docs.astral.sh/uv/), que instala sozinho o
+`psycopg`, a única dependência do script.
 
 ```bash
-pnpm install --frozen-lockfile
-(cd apps/core && uv sync --extra dev && make run)   # PostGIS, carga e conferência
-make up                                             # GeoServer, publicação e portal
-make -C apps/core semear                            # tiles em cache (dezenas de minutos)
+export DATABASE_URL=postgresql://usuario:senha@servidor:5432/planaveg
+createdb planaveg
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f 1_tabelas.sql -f 2_views.sql
+uv run 3_carga.py /caminho/Planaveg_2026_Categorias_Visualizacao.gpkg
 ```
 
-Com a base final, o `make run` termina com erro. É esperado: o `verify` reprova uma sobreposição
-que vem do próprio arquivo, e o `make up` publica mesmo assim. A explicação está no
-[resumo do código](./docs/resumo-do-codigo.md#rodar-localmente).
+O usuário precisa poder gravar em `spatial_ref_sys` (o dono do banco serve): o `1_tabelas.sql`
+registra lá o Albers do IBGE, o sistema de coordenadas do arquivo, para o PostGIS saber convertê-lo
+para o 4674.
 
-Endereços:
+A carga roda numa transação só: **ou entra a base inteira, ou nada muda.** Se der erro no meio, a
+tabela continua com a carga anterior.
 
-- portal: <http://localhost:4173> (ou `pnpm --filter @sinaveg/web dev`, na mesma porta)
-- GeoServer: <http://127.0.0.1:8085/geoserver> (admin / planaveg, workspace `planaveg`)
-- PostGIS do core: `127.0.0.1:55434`, banco `planaveg`
+**A carga não corrige dados.** O que vem no arquivo entra como está; o que não encaixa no modelo
+(coluna nova, nível desconhecido, desenho que não é polígono) faz a carga parar, e quem corrige é
+quem gera o arquivo.
 
-Para apontar o portal para outro GeoServer, copie `apps/web/.env.example` para `apps/web/.env`.
+Para testar rápido, use a amostra do Espírito Santo, `../docs/gpkg/amostra_es.gpkg` (2.918 áreas,
+poucos segundos).
 
-`make check` roda lint, formatação e tipos do core e do portal. `make test` roda os testes do core
-e do portal. `make down` para tudo sem apagar os volumes.
+## Conferir
 
-## Recriar o banco do zero, à mão
+```sql
+-- Áreas e hectares por ano. Na base de 16/10: 70.581 (2022) e 70.739 (2024).
+SELECT ano_mapeamento, count(*), round(sum(area_ha)) FROM area_mapeada GROUP BY 1 ORDER BY 1;
 
-É o caminho do cliente: o banco sai dos arquivos da `modelagem/`, e não do `init-db`. O passo 1
-apaga os volumes do compose: o banco, com os outros bancos do mesmo servidor (como o
-`planaveg_debug`), e o cache de tiles. Leva umas duas horas, quase tudo na carga e na
-conferência. Até o passo 4, os comandos rodam na raiz do repositório.
+-- O cômputo de 2024 por nível: area_ha tem de bater com total_no_arquivo_ha em todas as linhas.
+SELECT nivel, nivel_nome, situacao_car, round(area_ha), round(total_no_arquivo_ha)
+FROM computo_por_nivel WHERE ano_mapeamento = 2024 ORDER BY nivel, situacao_car;
 
-1. Apague os containers e os volumes, e suba só o banco. Se o GeoServer não parar ("cannot stop
-   container"), espere uns segundos e rode o `down` de novo.
+-- O cômputo de 2024 por arranjo, com a meta.
+SELECT nome, round(area_ha), meta_ha FROM computo_por_arranjo WHERE ano_mapeamento = 2024 ORDER BY ordem;
+```
 
-   ```bash
-   docker compose down -v
-   docker compose up -d --wait db
-   ```
+## No GeoServer
 
-2. Troque o banco que a imagem do PostGIS cria, que já vem com extensões a mais (topology e
-   tiger), por um vazio:
+1. Crie um datastore PostGIS apontado para o banco, com **"Expose primary keys" ligado**. Sem isso,
+   o GeoServer esconde `ano_mapeamento` e `id_no_arquivo` (a chave da tabela), e o filtro pelo ano
+   não funciona.
+2. Publique `area_mapeada` como camada de mapa (SRS EPSG:4674), e as onze views, `nivel`,
+   `arranjo` e `tema` como tabelas (o WFS devolve em JSON ou CSV).
+3. Filtre com `CQL_FILTER`, por exemplo `ano_mapeamento=2024 AND in_car=true` ou
+   `ano_mapeamento=2024 AND arranjo='areas_publicas'`.
 
-   ```bash
-   docker compose exec db dropdb -U planaveg planaveg
-   docker compose exec db createdb -U planaveg planaveg
-   ```
+O mapa de um estado sai em poucos segundos; o do Brasil inteiro passa de um minuto, porque o
+desenho é o completo. O cache de tiles do GeoServer resolve isso depois da primeira vez. Depois de
+cada carga, esvazie o cache da camada:
 
-3. Aplique os quatro arquivos, numa transação só. Sem `ERROR` na saída, deu certo; com erro, nada
-   fica aplicado.
+```bash
+curl -u admin:SENHA -X POST "$GEOSERVER_URL/gwc/rest/masstruncate" -H "Content-Type: text/xml" \
+  -d "<truncateLayer><layerName>planaveg:area_mapeada</layerName></truncateLayer>"
+```
 
-   ```bash
-   PGPASSWORD=planaveg psql -h 127.0.0.1 -p 55434 -U planaveg -d planaveg -q -v ON_ERROR_STOP=1 --single-transaction -f modelagem/1_tabelas.sql -f modelagem/2_funcoes.sql -f modelagem/3_views.sql -f modelagem/4_dados.sql
-   ```
+## Onde mudar cada coisa
 
-   Para conferir, a consulta abaixo deve dar 50 views, 5571 municípios e o contrato 1.0.0:
+| Para mudar | Onde |
+| --- | --- |
+| o nome ou o grupo de um nível, o nome ou a meta de um arranjo, o nome, o grupo ou a ordem de um tema | uma linha nas tabelas `nivel`, `arranjo` ou `tema` (`UPDATE`) e no `1_tabelas.sql` |
+| a regra do arranjo | a coluna `arranjo` de `area_mapeada`, no `1_tabelas.sql`; num banco que já existe, `ALTER TABLE area_mapeada ALTER COLUMN arranjo SET EXPRESSION AS (CASE ... END)`, que recalcula todas as áreas sem recarregar |
+| quais áreas entram num tema | o `CASE` em `computo_por_tema` (`2_views.sql`), uma linha por tema |
+| um tema novo | uma linha na tabela `tema` e uma no `CASE` de `computo_por_tema`; sem a linha no `CASE`, ele fica com zero |
+| a condição do CAR | o `CASE` em `computo_por_nivel` (`2_views.sql`) |
+| qual coluna do arquivo vai em qual coluna da tabela | o dicionário `COLUNAS` do `3_carga.py` |
+| qual camada do arquivo vira qual ano | o dicionário `CAMADAS` do `3_carga.py` |
 
-   ```bash
-   docker compose exec db psql -U planaveg -d planaveg -c "SELECT (SELECT count(*) FROM objeto_gerado) AS views, (SELECT count(*) FROM lugar_municipio) AS municipios, (SELECT versao FROM contrato_versao WHERE vigente) AS contrato"
-   ```
+Uma view se muda com `CREATE OR REPLACE VIEW` (ou apagando e rodando o `2_views.sql` de novo), sem
+recarregar nada.
 
-4. Dê uma senha ao papel do GeoServer. Os arquivos o criam sem senha, e o core local usa
-   `geoserver_leitura` (`GEOSERVER_PG_PASSWORD`):
+## Quando chegar um GeoPackage novo
 
-   ```bash
-   docker compose exec db psql -U planaveg -d planaveg -c "ALTER ROLE geoserver_leitura PASSWORD 'geoserver_leitura'"
-   ```
+- **Mesmas camadas e colunas:** é só rodar o `3_carga.py` com o arquivo novo.
+- **Camada com outro nome:** troque em `CAMADAS`.
+- **Coluna nova:** a carga para e diz qual é. Crie a coluna na tabela (`ALTER TABLE area_mapeada
+  ADD COLUMN ...`, e no `1_tabelas.sql`) e ponha a dupla em `COLUNAS`. Se for uma marca, o nome
+  começa com `in_` e o tipo é `boolean`.
+- **Coluna que saiu:** a carga roda, e a coluna fica vazia (NULL).
+- **Desenho que não é polígono** (ponto, linha): a carga para; a coluna `geom` só aceita polígonos.
+- **Nível novo:** a carga para com erro de chave estrangeira. Acrescente o nível na tabela `nivel`
+  (`INSERT INTO nivel(id, nome, grupo) VALUES (12, 'Nome', 'Grupo');`, e no `1_tabelas.sql`) e
+  rode de novo.
+- **Outro sistema de coordenadas:** confira com `sqlite3 arquivo.gpkg "SELECT * FROM
+  gpkg_spatial_ref_sys"`. Se não for mais o Albers do IBGE (100000), mude o registro no
+  `1_tabelas.sql` e o número no `INSERT` do `3_carga.py`.
 
-5. Em `apps/core`, carregue e confira. A carga lê
-   `docs/gpkg/Planaveg_2026_Categorias_Visualizacao.gpkg` e leva uns 50 minutos; se falhar no
-   meio, nada muda no banco. A conferência completa leva uns 40 minutos, e `--rapido` pula a
-   sobreposição e termina em poucos minutos.
+## Cuidados que estão nas regras
 
-   ```bash
-   cd apps/core
-   uv run planaveg-core load
-   uv run planaveg-core verify --aceitar pecas_sem_sobreposicao
-   ```
-
-6. Ainda em `apps/core`, publique no GeoServer e veja o que ficou no ar:
-
-   ```bash
-   make geoserver
-   uv run planaveg-core status
-   ```
-
-7. Opcional: os tiles em cache (`uv run planaveg-core semear`, em `apps/core`) e o portal
-   (`docker compose up --build -d --wait web`, na raiz).
-
-Para manter o `planaveg_debug` e o cache de tiles, pule o passo 1 e use `dropdb --force` no
-passo 2: ele derruba as conexões abertas, como as do GeoServer. O
-[README da modelagem](./modelagem/README.md) traz o mesmo caminho para outro servidor.
-
-## Documentação
-
-- [Resumo do código](./docs/resumo-do-codigo.md): a modelagem do banco e a base de código, com o
-  que não quebrar.
-- [Base nova](./docs/base-nova.md): o passo a passo quando chega um GeoPackage novo, da conferência
-  à produção, inclusive quando a estrutura muda, e quando só o contrato muda (um filtro, um arranjo,
-  um título), com um exemplo para cada caso.
-- [README do core](./apps/core/README.md): os comandos do `planaveg_core`.
-- [`CONTEXT.md`](./CONTEXT.md): os termos do domínio.
+- **UC no arranjo e UC no tema não são a mesma coisa.** O tema "Unidades de Conservação" conta toda
+  UC, APA e RPPN incluídas (`in_uc`). O arranjo de áreas públicas conta só a UC que não é APA, a
+  sigla `UC` de `siglas_sobreposicao`, porque nas APAs só as áreas públicas entram.
+- **A UF de uma área é a do recorte.** Na divisa, o limite de UF e o de município não coincidem, e
+  sobram lascas com o município de um estado e a UF do vizinho (3 áreas de Vila Rica, MT, vêm com
+  UF PA). Por isso `computo_por_municipio` identifica o município pelo código do IBGE, e não pela
+  UF. A bacia vem com a mesobacia, porque há um nome de bacia em duas mesobacias.

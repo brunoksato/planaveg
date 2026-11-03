@@ -15,3 +15,4 @@ node_modules/
 docs/gpkg/*.gpkg
 .scratch/backups/*.dump
 .scratch/backups/*.tar.gz
+gpkg/*.gpkg

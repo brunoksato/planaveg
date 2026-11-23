@@ -25,7 +25,7 @@ ON CONFLICT (srid)
 -- conta em um nível só, o primeiro que se aplica a ela, para não ser contada duas vezes.
 CREATE TABLE nivel(
     id integer PRIMARY KEY, -- o número do nível, de 1 a 11 (no arquivo, tier)
-    nome text NOT NULL, -- como na planilha de nomenclatura do SINAVEG
+    nome text NOT NULL, -- o nome curto do nível, como na hierarquia do arquivo
     grupo text NOT NULL -- o grupo de saída do relatório (seção 4)
 );
 
@@ -33,12 +33,12 @@ INSERT INTO nivel(id, nome, grupo)
 VALUES
     (1, 'Recooperar', 'Projetos de Recuperação da Vegetação Nativa'),
 (2, 'MonitoRAD', 'Projetos de Recuperação da Vegetação Nativa'),
-(3, 'PRADA', 'Projetos de Recuperação da Vegetação Nativa'),
-(4, 'Projetos de Cooperação MMA', 'Projetos de Recuperação da Vegetação Nativa'),
-(5, 'Observatório da Restauração e Recuperação', 'Projetos de Recuperação da Vegetação Nativa'),
-(6, 'Terras Indígenas', 'Vegetação Secundária em Áreas Legalmente Protegidas'),
+(3, 'Regularização Ambiental - CAR', 'Projetos de Recuperação da Vegetação Nativa'),
+(4, 'Outros Projetos', 'Projetos de Recuperação da Vegetação Nativa'),
+(5, 'Observatório da Restauração', 'Projetos de Recuperação da Vegetação Nativa'),
+(6, 'Territórios Indígenas', 'Vegetação Secundária em Áreas Legalmente Protegidas'),
 (7, 'Unidades de Conservação', 'Vegetação Secundária em Áreas Legalmente Protegidas'),
-(8, 'Sistemas Costeiros', 'Vegetação Secundária em Áreas Legalmente Protegidas'),
+(8, 'Manguezais', 'Vegetação Secundária em Áreas Legalmente Protegidas'),
 (9, 'Área de Preservação Permanente', 'Vegetação Secundária em Áreas Legalmente Protegidas'),
 (10, 'Área de Uso Restrito', 'Vegetação Secundária em Áreas Legalmente Protegidas'),
 (11, 'Reserva Legal', 'Vegetação Secundária em Áreas Legalmente Protegidas');
@@ -76,14 +76,14 @@ VALUES
 ('licenciamento', 3, 'Projetos de Recuperação da Vegetação Nativa', 'Áreas em recuperação por processos de Licenciamento Ambiental'),
 ('outras_areas_projetos', 4, 'Projetos de Recuperação da Vegetação Nativa', 'Outras áreas de projetos não incluídas nas demais categorias'),
 ('unidade_conservacao', 5, 'Vegetação Secundária em Áreas Legalmente Protegidas', 'Unidades de Conservação'),
-('terra_indigena', 6, 'Vegetação Secundária em Áreas Legalmente Protegidas', 'Terras Indígenas'),
+('terra_indigena', 6, 'Vegetação Secundária em Áreas Legalmente Protegidas', 'Territórios Indígenas'),
 ('arranjo_app_rl_aur', 7, 'Arranjos de Implementação do Planaveg', 'Recuperação da vegetação nativa em APP, RL e AUR'),
 ('arranjo_baixa_produtividade', 8, 'Arranjos de Implementação do Planaveg', 'Recuperação da vegetação em áreas rurais consolidadas com sistemas integrados de produção'),
 ('arranjo_areas_publicas', 9, 'Arranjos de Implementação do Planaveg', 'Recuperação da vegetação nativa em áreas públicas'),
 ('manguezal', 10, 'Limites Ecológicos provenientes de dados oficiais', 'Ecossistemas: Manguezais (Pró-Manguezal)'),
 ('assentamento', 11, 'Categorias Fundiárias', 'Assentamentos Rurais'),
 ('quilombola', 12, 'Categorias Fundiárias', 'Territórios Quilombolas'),
-('fundiario_terra_indigena', 13, 'Categorias Fundiárias', 'Terras Indígenas'),
+('fundiario_terra_indigena', 13, 'Categorias Fundiárias', 'Territórios Indígenas'),
 ('fundiario_uc', 14, 'Categorias Fundiárias', 'Unidades de Conservação'),
 ('car', 15, 'Categorias Fundiárias', 'Cadastro Ambiental Rural');
 
@@ -95,13 +95,16 @@ CREATE TABLE area_mapeada(
     id_no_arquivo bigint NOT NULL, -- fid no geopackage
     -- Onde a área conta. Cada área conta em um nível só da hierarquia do Planaveg (1 Recooperar
     -- ... 11 Reserva Legal), o primeiro que se aplica a ela, para não ser contada duas vezes.
-    nivel integer REFERENCES nivel, -- o número do nível, de 1 a 11 (no arquivo, tier)
-    linha_hierarquia text, -- o nível por extenso, com a situação do CAR quando é
-    -- APP, AUR ou RL (no arquivo, hierarquia_planaveg)
-    situacao_car text, -- Habilitados, Analisados ou Nao_Analisados; vazio fora de
-    -- APP, AUR e RL (no arquivo, categoria)
-    total_linha_hierarquia_ha double precision, -- o cômputo da linha da hierarquia inteira no ano,
-    -- repetido em cada área dela (no arquivo, computo)
+    nivel integer NOT NULL REFERENCES nivel, -- o número do nível, de 1 a 11 (no arquivo, tier)
+    linha_hierarquia text, -- o nível por extenso, com a fonte quando o nível tem várias, como
+    -- "Outros Projetos ASL" (no arquivo, hierarquia_planaveg)
+    categoria text, -- a categoria da área no relatório, como Embargadas, Outros Projetos ou APP
+    -- (no arquivo, Nome_Abreviado)
+    categoria_detalhada text, -- a categoria por extenso (no arquivo, Nome_Detalhado)
+    condicao_car text, -- a condição do imóvel no CAR, por extenso; só nos níveis 3, 9, 10 e 11
+    -- (no arquivo, CAR_Condicao)
+    categoria_projeto text, -- Área_Embargada, Reparação_Danos, Licenciamento_Ambiental ou
+    -- Outras_Áreas; só nos níveis de projeto, 1, 2, 4 e 5 (no arquivo, PROJ_Categoria)
     area_ha double precision, -- a área desta, em hectares
     -- onde a área está
     uf text, -- a UF do recorte (na divisa, pode não ser a do município)
@@ -111,64 +114,57 @@ CREATE TABLE area_mapeada(
     bacia text,
     mesobacia text,
     regiao_hidrografica text,
-    -- No arquivo, cada uma é uma coluna com a sigla quando a área tem a marca e vazia quando não tem.
-    -- in_ = “está em”: a coluna diz sim ou não se a área fica dentro daquele lugar (in_car = a área está em imóvel do CAR).
-    in_car boolean, -- em imóvel do CAR, em qualquer situação
-    in_car_habilitado boolean,
-    in_car_analisado boolean,
-    in_car_nao_analisado boolean,
-    in_car_regularizacao boolean, -- área a recuperar de imóvel analisado, em regularização
-    in_app_car_habilitado boolean, -- em APP (Área de Preservação Permanente) de imóvel habilitado
-    in_app_car_analisado boolean,
-    in_app_car_nao_analisado boolean,
-    in_rl_car_habilitado boolean, -- em RL (Reserva Legal)
-    in_rl_car_analisado boolean,
-    in_rl_car_nao_analisado boolean,
-    in_aur_car_habilitado boolean, -- em AUR (Área de Uso Restrito)
-    in_aur_car_analisado boolean,
-    in_aur_car_nao_analisado boolean,
-    in_projeto_recuperacao boolean, -- em projeto de recuperação, de qualquer fonte (PROJ)
-    in_licenciamento_ambiental boolean, -- Recooperar: recuperação por licenciamento
-    in_reparacao_danos boolean, -- Recooperar: reparação de danos
-    in_area_embargada boolean, -- Recooperar: processo de embargo
-    in_outras_areas_recooperar boolean, -- Recooperar: outras áreas
-    in_embargo_pangia boolean, -- embargo do PANGIA (sanções do IBAMA)
-    in_gef_terrestre boolean, -- projeto GEF Terrestre
-    in_restauracao_ecologica boolean,
-    in_observatorio_restauracao boolean, -- Observatório da Restauração e Reflorestamento (ORR)
-    in_manguezal boolean, -- manguezal do Pró-Manguezal
+    -- A UC e a TI em que a área conta. Só vêm preenchidas no nível delas (7 e 6); quando a área
+    -- está em mais de uma, vêm separadas por "; ", como "UC_Federal; UC_Estadual".
+    nome_uc text, -- (no arquivo, UC_Nome)
+    manejo_uc text, -- Proteção_Integral ou Uso_Sustentável (no arquivo, UC_Manejo)
+    esfera_uc text, -- UC_Federal, UC_Estadual ou UC_Municipal (no arquivo, UC_Esfera)
+    nome_terra_indigena text, -- (no arquivo, TI_Nome)
+    -- Tudo em que a área está, em qualquer nível: as siglas juntas, como PROJCARAS (PROJ, CAR e
+    -- AS). As siglas são PROJ, CAR, APA, RPPN, UC, TI, AS, QL e MANG; a UC daqui é a que não é APA
+    -- nem RPPN. Nenhuma sigla está dentro de outra, e é isso que deixa procurar cada uma com
+    -- position(); o README tem a consulta que confere isso num arquivo novo.
+    siglas_sobreposicao text, -- (no arquivo, Sobreposicao)
+    -- As marcas. in_ = "está em": a coluna diz sim ou não se a área fica dentro daquele lugar, em
+    -- qualquer nível (in_car = a área está em imóvel do CAR). Estas quatro vêm do arquivo, que traz a
+    -- sigla quando a área tem a marca e vazio quando não tem.
     in_apa boolean, -- Área de Proteção Ambiental
     in_rppn boolean, -- Reserva Particular do Patrimônio Natural
-    in_uc boolean, -- Unidade de Conservação de qualquer tipo, APA e RPPN incluídas
-    in_uc_federal boolean,
-    in_uc_estadual boolean,
-    in_uc_municipal boolean,
-    in_terra_indigena boolean, -- (TI)
-    in_assentamento boolean, -- assentamento rural (AS)
-    in_territorio_quilombola boolean, -- (QL)
-    siglas_sobreposicao text, -- as siglas fundiárias juntas, como PROJCARAS (PROJ, CAR, AS)
+    in_assentamento boolean, -- assentamento rural (no arquivo, AS)
+    in_territorio_quilombola boolean, -- (no arquivo, QL)
+    -- Estas o PostgreSQL calcula das siglas. O arquivo também tem colunas CAR, PROJ, UC, TI e
+    -- Manguezal, mas elas só marcam as áreas do próprio nível (UC só no nível 7), e a carga as
+    -- ignora: repetem o nível.
+    in_car boolean GENERATED ALWAYS AS (position('CAR' IN siglas_sobreposicao) > 0) STORED,
+    in_projeto_recuperacao boolean GENERATED ALWAYS AS (position('PROJ' IN siglas_sobreposicao) > 0) STORED,
+    -- UC de qualquer tipo, APA e RPPN incluídas
+    in_uc boolean GENERATED ALWAYS AS (position('UC' IN siglas_sobreposicao) > 0 OR in_apa OR in_rppn) STORED,
+    in_terra_indigena boolean GENERATED ALWAYS AS (position('TI' IN siglas_sobreposicao) > 0) STORED,
+    in_manguezal boolean GENERATED ALWAYS AS (position('MANG' IN siglas_sobreposicao) > 0) STORED, -- Pró-Manguezal
     -- O arranjo em que a área cai. Não vem do arquivo: o PostgreSQL calcula sozinho, a partir das
     -- colunas acima, quando cada área é gravada. É o primeiro arranjo que a área atende, na ordem de
     -- prioridade da tabela arranjo. A UC daqui é a que não é APA nem RPPN (a sigla UC de
-    -- siglas_sobreposicao): nas APAs, só as áreas públicas, que já vêm no nível 7, entram. O de baixa
-    -- produtividade não tem regra: a base não traz o que o define. Para mudar a regra num banco que
-    -- já existe: ALTER TABLE area_mapeada ALTER COLUMN arranjo SET EXPRESSION AS (CASE ... END).
+    -- siglas_sobreposicao): nas APAs, só as áreas públicas, que já vêm no nível 7, entram. A TI
+    -- também sai da sigla, porque uma coluna calculada não pode usar outra (in_terra_indigena). O de
+    -- baixa produtividade não tem regra: a base não traz o que o define. Para mudar a regra num banco
+    -- que já existe: ALTER TABLE area_mapeada ALTER COLUMN arranjo SET EXPRESSION AS (CASE ... END).
     -- poderia ser movido para campo calculado em um codigo.
-   arranjo text GENERATED ALWAYS AS (
+
+    -- pode ser trocado por update
+    -- versao 17.x
+    arranjo text GENERATED ALWAYS AS (
         CASE
             WHEN nivel IN (6, 7, 8)
                 OR position('UC' IN siglas_sobreposicao) > 0 OR in_rppn
-                OR in_terra_indigena OR in_assentamento OR in_territorio_quilombola
+                OR position('TI' IN siglas_sobreposicao) > 0
+                OR in_assentamento OR in_territorio_quilombola
                 THEN 'areas_publicas'
             WHEN nivel IN (3, 9, 10, 11)
-                OR in_app_car_habilitado OR in_app_car_analisado OR in_app_car_nao_analisado
-                OR in_rl_car_habilitado OR in_rl_car_analisado OR in_rl_car_nao_analisado
-                OR in_aur_car_habilitado OR in_aur_car_analisado OR in_aur_car_nao_analisado
-                OR in_car_regularizacao
                 THEN 'app_rl_aur'
             ELSE 'demais_areas'
         END
-    ) STORED REFERENCES arranjo,    -- o desenho, em SIRGAS 2000 (lat/long); a carga converte do Albers do arquivo
+    ) STORED REFERENCES arranjo,
+    -- o desenho, em SIRGAS 2000 (lat/long); a carga converte do Albers do arquivo
     geom geometry(MultiPolygon, 4674) NOT NULL,
     PRIMARY KEY (ano_mapeamento, id_no_arquivo)
 );

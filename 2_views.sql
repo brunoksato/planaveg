@@ -1,9 +1,8 @@
 -- ============================================================================================
 -- Os números do relatório
 -- ============================================================================================
--- O cômputo por linha da hierarquia (Anexo 1). Os níveis não se sobrepõem: dá para somar. O
--- total_no_arquivo_ha é o cômputo que o próprio arquivo traz para a linha; tem de dar igual a
--- area_ha. O nível 2 (MonitoRAD) não tem áreas no arquivo e não aparece.
+-- O cômputo por linha da hierarquia (Anexo 1): uma linha por nível, linha da hierarquia, categoria
+-- e condição do CAR, como o arquivo traz. Os níveis não se sobrepõem: dá para somar.
 CREATE VIEW computo_por_nivel AS
 SELECT
     a.ano_mapeamento,
@@ -11,20 +10,11 @@ SELECT
     a.nivel,
     n.nome AS nivel_nome,
     a.linha_hierarquia,
-    a.situacao_car,
-    -- As três situações do CAR no arquivo viram as duas condições do relatório (só em APP, AUR
-    -- e RL).
-    CASE a.situacao_car
-    WHEN 'Habilitados' THEN
-        'Analisado, em conformidade com a Lei nº 12.651/2012, com ativos e em regularização'
-    WHEN 'Analisados' THEN
-        'Não analisado, em análise ou aguardando retificação'
-    WHEN 'Nao_Analisados' THEN
-        'Não analisado, em análise ou aguardando retificação'
-    END AS condicao_car,
+    a.categoria,
+    a.categoria_detalhada,
+    a.condicao_car,
     count(*) AS areas,
-    sum(a.area_ha) AS area_ha,
-    max(a.total_linha_hierarquia_ha) AS total_no_arquivo_ha
+    sum(a.area_ha) AS area_ha
 FROM
     area_mapeada a
     LEFT JOIN nivel n ON n.id = a.nivel
@@ -34,7 +24,9 @@ GROUP BY
     a.nivel,
     n.nome,
     a.linha_hierarquia,
-    a.situacao_car;
+    a.categoria,
+    a.categoria_detalhada,
+    a.condicao_car;
 
 -- O cômputo por arranjo de implementação (Anexo 2), com a meta até 2030. Os arranjos não se
 -- sobrepõem: dá para somar. Partir da tabela arranjo garante a linha do arranjo sem áreas (baixa
@@ -68,10 +60,12 @@ GROUP BY
 
 -- As áreas de cada tema (filtro) do relatório, por ano. O nome, o grupo e a ordem de cada tema estão
 -- na tabela tema; aqui fica só a regra de quem entra nele: o CASE abaixo, uma linha por tema, quase
--- sempre uma marca. Os temas se sobrepõem (uma área pode estar em vários): NUNCA some as linhas
--- desta view. Terras Indígenas e Unidades de Conservação aparecem em dois grupos do relatório, com
--- a mesma regra; a UC aqui é toda UC, APA e RPPN incluídas (in_uc). Partir da tabela tema garante a
--- linha do tema sem áreas (baixa produtividade); um tema da tabela sem linha no CASE fica com zero.
+-- sempre uma marca ou a categoria do projeto. Os temas se sobrepõem (uma área pode estar em
+-- vários): NUNCA some as linhas desta view. Territórios Indígenas e Unidades de Conservação aparecem em
+-- dois grupos do relatório, com a mesma regra; a UC aqui é toda UC, APA e RPPN incluídas (in_uc).
+-- O embargo é só o do Recooperar (nível 1): o MonitoRAD (nível 2) entra em outras áreas de projetos.
+-- Partir da tabela tema garante a linha do tema sem áreas (baixa produtividade); um tema da tabela sem linha no CASE
+-- fica com zero.
 CREATE VIEW computo_por_tema AS
 WITH ano AS (
     SELECT DISTINCT
@@ -93,16 +87,15 @@ FROM
     LEFT JOIN area_mapeada a ON a.ano_mapeamento = y.ano_mapeamento
         AND CASE t.slug
         WHEN 'embargo_recooperar' THEN
-            a.in_area_embargada
+            a.nivel = 1
+            AND a.categoria_projeto = 'Área_Embargada'
         WHEN 'reparacao_danos' THEN
-            a.in_reparacao_danos
+            a.categoria_projeto = 'Reparação_Danos'
         WHEN 'licenciamento' THEN
-            a.in_licenciamento_ambiental
+            a.categoria_projeto = 'Licenciamento_Ambiental'
         WHEN 'outras_areas_projetos' THEN
-            a.in_outras_areas_recooperar
-            OR a.in_observatorio_restauracao
-            OR a.in_car_regularizacao
-            OR a.nivel IN (3, 4, 5)
+            a.categoria_projeto = 'Outras_Áreas'
+            OR a.nivel IN (2, 3, 4, 5)
         WHEN 'unidade_conservacao' THEN
             a.in_uc
         WHEN 'terra_indigena' THEN
@@ -327,16 +320,18 @@ FROM
     computo
 WINDOW anterior AS (PARTITION BY recorte, codigo ORDER BY ano_mapeamento);
 
--- As áreas em Unidade de Conservação por esfera (federal, estadual e municipal), e em qualquer UC.
--- As esferas se sobrepõem (uma área pode estar numa UC federal e numa estadual ao mesmo tempo):
--- NUNCA some as linhas desta view; o total de UC é a linha "qualquer esfera". APA e RPPN entram.
+-- As áreas do nível 7 (Unidades de Conservação) por esfera da UC: federal, estadual, municipal e
+-- qualquer esfera. O arquivo só traz a esfera nas áreas do nível 7, então esta view não conta as
+-- áreas de outros níveis que estão em UC; essas estão no tema unidade_conservacao. As esferas se
+-- sobrepõem (uma área pode estar numa UC federal e numa estadual ao mesmo tempo, e o arquivo traz
+-- "UC_Federal; UC_Estadual"): NUNCA some as linhas desta view; o total é a linha "qualquer esfera".
 CREATE VIEW computo_por_esfera_uc AS
 SELECT
     ano_mapeamento,
     1 AS ordem,
     'federal' AS esfera,
-    count(*) FILTER (WHERE in_uc_federal) AS areas,
-    coalesce(sum(area_ha) FILTER (WHERE in_uc_federal), 0) AS area_ha
+    count(*) FILTER (WHERE position('UC_Federal' IN esfera_uc) > 0) AS areas,
+    coalesce(sum(area_ha) FILTER (WHERE position('UC_Federal' IN esfera_uc) > 0), 0) AS area_ha
 FROM
     area_mapeada
 GROUP BY
@@ -346,8 +341,8 @@ SELECT
     ano_mapeamento,
     2,
     'estadual',
-    count(*) FILTER (WHERE in_uc_estadual),
-    coalesce(sum(area_ha) FILTER (WHERE in_uc_estadual), 0)
+    count(*) FILTER (WHERE position('UC_Estadual' IN esfera_uc) > 0),
+    coalesce(sum(area_ha) FILTER (WHERE position('UC_Estadual' IN esfera_uc) > 0), 0)
 FROM
     area_mapeada
 GROUP BY
@@ -357,8 +352,8 @@ SELECT
     ano_mapeamento,
     3,
     'municipal',
-    count(*) FILTER (WHERE in_uc_municipal),
-    coalesce(sum(area_ha) FILTER (WHERE in_uc_municipal), 0)
+    count(*) FILTER (WHERE position('UC_Municipal' IN esfera_uc) > 0),
+    coalesce(sum(area_ha) FILTER (WHERE position('UC_Municipal' IN esfera_uc) > 0), 0)
 FROM
     area_mapeada
 GROUP BY
@@ -368,8 +363,8 @@ SELECT
     ano_mapeamento,
     4,
     'qualquer esfera',
-    count(*) FILTER (WHERE in_uc),
-    coalesce(sum(area_ha) FILTER (WHERE in_uc), 0)
+    count(*) FILTER (WHERE nivel = 7),
+    coalesce(sum(area_ha) FILTER (WHERE nivel = 7), 0)
 FROM
     area_mapeada
 GROUP BY

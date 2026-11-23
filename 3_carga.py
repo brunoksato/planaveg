@@ -9,8 +9,8 @@ Uso:
     export DATABASE_URL=postgresql://usuario:senha@servidor:5432/banco
     uv run 3_carga.py /caminho/Planaveg_2026_Categorias_Visualizacao.gpkg
 
-Tudo numa transação só: ou entra a base inteira, ou nada muda. O arranjo de cada área o próprio
-PostgreSQL calcula ao gravar (a coluna arranjo de area_mapeada, em 1_tabelas.sql).
+Tudo numa transação só: ou entra a base inteira, ou nada muda. O arranjo e as marcas que saem das
+siglas (in_car, in_uc...) o próprio PostgreSQL calcula ao gravar (area_mapeada, em 1_tabelas.sql).
 """
 
 import os
@@ -30,13 +30,15 @@ CAMADAS = {
 
 # Coluna do arquivo → coluna da tabela area_mapeada. As colunas in_ são as marcas: no arquivo
 # vêm com a sigla quando a área tem a marca e vazias quando não tem; na tabela viram sim ou não.
-# in_ = “está em”: a coluna diz sim ou não se a área fica dentro daquele lugar (in_car = a área está em imóvel do CAR).
+# in_ = “está em”: a coluna diz sim ou não se a área fica dentro daquele lugar (in_apa = a área está em APA).
 COLUNAS = {
     "fid": "id_no_arquivo",
     "hierarquia_planaveg": "linha_hierarquia",
     "tier": "nivel",
-    "categoria": "situacao_car",
-    "computo": "total_linha_hierarquia_ha",
+    "Nome_Abreviado": "categoria",
+    "Nome_Detalhado": "categoria_detalhada",
+    "CAR_Condicao": "condicao_car",
+    "PROJ_Categoria": "categoria_projeto",
     "Area_ha": "area_ha",
     "UF": "uf",
     "Bioma": "bioma",
@@ -45,41 +47,22 @@ COLUNAS = {
     "Bacia": "bacia",
     "Bacia_meso": "mesobacia",
     "Regiao_Hidrografica": "regiao_hidrografica",
-    "CAR": "in_car",
-    "CAR_Habilitado": "in_car_habilitado",
-    "CAR_Analisado": "in_car_analisado",
-    "CAR_Nao_Analisado": "in_car_nao_analisado",
-    "CAR_regularizacao": "in_car_regularizacao",
-    "APP_Habilitado": "in_app_car_habilitado",
-    "APP_Analisado": "in_app_car_analisado",
-    "APP_Nao_Analisado": "in_app_car_nao_analisado",
-    "RL_Habilitado": "in_rl_car_habilitado",
-    "RL_Analisado": "in_rl_car_analisado",
-    "RL_Nao_Analisado": "in_rl_car_nao_analisado",
-    "AUR_Habilitado": "in_aur_car_habilitado",
-    "AUR_Analisado": "in_aur_car_analisado",
-    "AUR_Nao_Analisado": "in_aur_car_nao_analisado",
-    "PROJ": "in_projeto_recuperacao",
-    "Licenciamento_Ambiental": "in_licenciamento_ambiental",
-    "Reparacao_Danos": "in_reparacao_danos",
-    "Area_Embargada": "in_area_embargada",
-    "Outras_Areas": "in_outras_areas_recooperar",
-    "Embargo_PANGIA": "in_embargo_pangia",
-    "GEF_Terrestre": "in_gef_terrestre",
-    "Restauracao_Ecologica": "in_restauracao_ecologica",
-    "ORR": "in_observatorio_restauracao",
-    "Manguezal": "in_manguezal",
+    "UC_Nome": "nome_uc",
+    "UC_Manejo": "manejo_uc",
+    "UC_Esfera": "esfera_uc",
+    "TI_Nome": "nome_terra_indigena",
+    "Sobreposicao": "siglas_sobreposicao",
     "APA": "in_apa",
     "RPPN": "in_rppn",
-    "UC": "in_uc",
-    "UC_federal": "in_uc_federal",
-    "UC_estadual": "in_uc_estadual",
-    "UC_municipal": "in_uc_municipal",
-    "TI": "in_terra_indigena",
-    "AS_": "in_assentamento",
+    "AS": "in_assentamento",
     "QL": "in_territorio_quilombola",
-    "Sobreposicao": "siglas_sobreposicao",
 }
+
+# Colunas do arquivo que a carga não grava. Elas só marcam as áreas do próprio nível (UC só no
+# nível 7, CAR só nos níveis 3, 9, 10 e 11...), então repetem o nível. O "está em" de cada uma, em
+# qualquer nível, o PostgreSQL tira de siglas_sobreposicao (as colunas in_car, in_uc... de
+# area_mapeada).
+IGNORAR = {"CAR", "PROJ", "UC", "TI", "Manguezal"}
 
 # Tamanho, em bytes, do envelope que o GeoPackage pode pôr no cabeçalho de cada desenho.
 ENVELOPE = {0: 0, 1: 32, 2: 48, 3: 48, 4: 64}
@@ -107,7 +90,7 @@ def carregar(gpkg, banco, ano, camada):
     destinos = []
     novas = []
     for nome in nomes:
-        if nome == "geom":
+        if nome == "geom" or nome in IGNORAR:
             continue
         if nome in COLUNAS:
             origens.append(nome)
@@ -117,7 +100,8 @@ def carregar(gpkg, banco, ano, camada):
 
     if novas:
         sys.exit(f"{camada} tem colunas que a carga não conhece: {novas}. Ponha cada uma em"
-                 " COLUNAS e crie a coluna na tabela area_mapeada (1_tabelas.sql).")
+                 " COLUNAS e crie a coluna na tabela area_mapeada (1_tabelas.sql), ou em IGNORAR, se"
+                 " ela só repete outra.")
 
     # Uma coluna e um %s para cada atributo que veio do arquivo.
     colunas = []

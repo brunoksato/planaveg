@@ -1,8 +1,8 @@
 # Modelagem nova
 
 Quatro tabelas e onze views. O GeoPackage do Planaveg entra na tabela `area_mapeada`, e o
-PostgreSQL calcula sozinho o arranjo de cada área. As tabelas `nivel`, `arranjo` e `tema` dizem o
-que é cada nível, arranjo e tema. As onze views juntam as duas coisas e dão os números do
+PostgreSQL calcula sozinho o arranjo e parte das marcas de cada área. As tabelas `nivel`, `arranjo`
+e `tema` dizem o que é cada nível, arranjo e tema. As onze views juntam as duas coisas e dão os números do
 relatório. O GeoServer publica `area_mapeada` como mapa e o resto como tabelas.
 
 ```
@@ -39,7 +39,7 @@ view lê, os fluxogramas de montar o banco e da carga, e a regra do arranjo.
 | `computo_por_arranjo` | o cômputo por arranjo, com a meta (Anexo 2) |
 | `computo_por_tema` | as áreas de cada um dos 15 filtros do relatório |
 | `computo_por_uf`, `computo_por_municipio`, `computo_por_bioma`, `computo_por_regiao_hidrografica`, `computo_por_mesobacia`, `computo_por_bacia` | o cômputo de cada lugar, aberto por nível e arranjo: para o total de um lugar, some as linhas dele |
-| `computo_por_esfera_uc` | as áreas em UC federal, estadual, municipal e em qualquer UC; as esferas se sobrepõem, não some |
+| `computo_por_esfera_uc` | as áreas do nível 7 (UC) por esfera: federal, estadual, municipal e qualquer esfera; as esferas se sobrepõem, não some |
 | `comparacao_entre_anos` | o cômputo de cada ano ao lado do anterior, com a diferença: o total, cada nível, cada arranjo e cada tema |
 
 `nivel`, `arranjo` e `tema` são tabelas de referência: guardam uma vez o que é cada nível, cada
@@ -58,13 +58,18 @@ de uma carga.
 - **Vegetação secundária (VS):** vegetação nativa que voltou a crescer onde já houve desmatamento,
   mapeada em 2022 e em 2024. Cada ano é uma camada do arquivo; os anos não se somam.
 - **Área:** uma linha do arquivo. Junta num multipolígono os polígonos que têm tudo igual (mesmo
-  nível, município, bacia, bioma e sobreposições). Em 2024 são 70.739.
+  nível, município, bacia, bioma e sobreposições). Em 2024 são 50.539.
 - **Nível:** a mesma área pode estar numa Terra Indígena, num imóvel do CAR e num projeto. Para não
   contá-la três vezes, ela conta só no primeiro de 11 níveis que se aplica (1 Recooperar ... 11
-  Reserva Legal). A **linha da hierarquia** é o nível com a situação do CAR, em APP, AUR e RL.
+  Reserva Legal). A **linha da hierarquia** é o nível por extenso, com a fonte quando o nível tem
+  várias (o nível 4 tem quatro: ASL, FUNBIO e dois do ICMBio).
+- **Categoria:** como a área aparece no relatório, como "Embargadas", "Outros Projetos" ou "APP". O
+  nível 1 se abre em quatro categorias; os quatro projetos do nível 4 viram uma só.
 - **Cômputo:** quanto conta para a meta do Planaveg (12 milhões de ha até 2030): a soma das áreas.
-- **Marca (`in_`):** `in_` = "está em". `in_car = true` quer dizer que a área está em imóvel do CAR.
-  O nível diz onde a área conta; as marcas, onde mais ela está.
+- **Marca (`in_`):** `in_` = "está em". `in_car = true` quer dizer que a área está em imóvel do CAR,
+  seja qual for o nível dela. O nível diz onde a área conta; as marcas, onde mais ela está.
+- **Siglas da sobreposição:** tudo em que a área está, numa coluna só: `PROJCARAS` é projeto, CAR e
+  assentamento. As siglas são PROJ, CAR, APA, RPPN, UC, TI, AS, QL e MANG (manguezal).
 - **Arranjo:** as formas de cumprir a meta: áreas públicas (2 milhões de ha), APP, RL e AUR (9
   milhões) e áreas rurais produtivas (1 milhão). O que não cai em nenhum fica em "demais áreas".
 - **Tema:** um recorte do relatório, como "tudo em UC" ou "tudo no CAR".
@@ -95,18 +100,16 @@ tabela continua com a carga anterior.
 (coluna nova, nível desconhecido, desenho que não é polígono) faz a carga parar, e quem corrige é
 quem gera o arquivo.
 
-Para testar rápido, use a amostra do Espírito Santo, `../docs/gpkg/amostra_es.gpkg` (2.918 áreas,
-poucos segundos).
-
 ## Conferir
 
 ```sql
--- Áreas e hectares por ano. Na base de 16/10: 70.581 (2022) e 70.739 (2024).
+-- Áreas e hectares por ano. Na base de novembro: 50.385 e 8.610.205 ha (2022), 50.539 e
+-- 8.834.444 ha (2024).
 SELECT ano_mapeamento, count(*), round(sum(area_ha)) FROM area_mapeada GROUP BY 1 ORDER BY 1;
 
--- O cômputo de 2024 por nível: area_ha tem de bater com total_no_arquivo_ha em todas as linhas.
-SELECT nivel, nivel_nome, situacao_car, round(area_ha), round(total_no_arquivo_ha)
-FROM computo_por_nivel WHERE ano_mapeamento = 2024 ORDER BY nivel, situacao_car;
+-- O cômputo de 2024 por nível, linha, categoria e condição do CAR (Anexo 1).
+SELECT nivel, nivel_nome, linha_hierarquia, categoria, condicao_car, areas, round(area_ha)
+FROM computo_por_nivel WHERE ano_mapeamento = 2024 ORDER BY nivel, linha_hierarquia, categoria, condicao_car;
 
 -- O cômputo de 2024 por arranjo, com a meta.
 SELECT nome, round(area_ha), meta_ha FROM computo_por_arranjo WHERE ano_mapeamento = 2024 ORDER BY ordem;
@@ -139,8 +142,9 @@ curl -u admin:SENHA -X POST "$GEOSERVER_URL/gwc/rest/masstruncate" -H "Content-T
 | a regra do arranjo | a coluna `arranjo` de `area_mapeada`, no `1_tabelas.sql`; num banco que já existe, `ALTER TABLE area_mapeada ALTER COLUMN arranjo SET EXPRESSION AS (CASE ... END)`, que recalcula todas as áreas sem recarregar |
 | quais áreas entram num tema | o `CASE` em `computo_por_tema` (`2_views.sql`), uma linha por tema |
 | um tema novo | uma linha na tabela `tema` e uma no `CASE` de `computo_por_tema`; sem a linha no `CASE`, ele fica com zero |
-| a condição do CAR | o `CASE` em `computo_por_nivel` (`2_views.sql`) |
 | qual coluna do arquivo vai em qual coluna da tabela | o dicionário `COLUNAS` do `3_carga.py` |
+| quais colunas do arquivo a carga ignora | o conjunto `IGNORAR` do `3_carga.py` |
+| como uma marca sai das siglas | a coluna `in_` dela em `area_mapeada`, no `1_tabelas.sql` (`SET EXPRESSION`, como o arranjo) |
 | qual camada do arquivo vira qual ano | o dicionário `CAMADAS` do `3_carga.py` |
 
 Uma view se muda com `CREATE OR REPLACE VIEW` (ou apagando e rodando o `2_views.sql` de novo), sem
@@ -152,9 +156,20 @@ recarregar nada.
 - **Camada com outro nome:** troque em `CAMADAS`.
 - **Coluna nova:** a carga para e diz qual é. Crie a coluna na tabela (`ALTER TABLE area_mapeada
   ADD COLUMN ...`, e no `1_tabelas.sql`) e ponha a dupla em `COLUNAS`. Se for uma marca, o nome
-  começa com `in_` e o tipo é `boolean`.
+  começa com `in_` e o tipo é `boolean`. Se ela só repete outra coisa (como as colunas CAR, PROJ,
+  UC, TI e Manguezal, que repetem o nível), ponha o nome dela em `IGNORAR`.
+- **Siglas da sobreposição:** as marcas `in_car`, `in_uc`... procuram cada sigla dentro de
+  `siglas_sobreposicao`, e isso só funciona se nenhuma sigla estiver dentro de outra. Confira antes
+  de carregar: tirando as siglas conhecidas, não pode sobrar nada.
+
+  ```bash
+  sqlite3 arquivo.gpkg "SELECT replace(replace(replace(replace(replace(replace(replace(replace(replace(Sobreposicao, 'PROJ', ''), 'CAR', ''), 'APA', ''), 'RPPN', ''), 'MANG', ''), 'UC', ''), 'TI', ''), 'AS', ''), 'QL', '') AS sobra, count(*) FROM Planaveg_2026_Visualizacao_vs2224q GROUP BY 1"
+  ```
+
+  Tem de voltar uma linha só, com a sobra vazia. Se vier uma sigla nova, crie a marca dela.
 - **Coluna que saiu:** a carga roda, e a coluna fica vazia (NULL).
 - **Desenho que não é polígono** (ponto, linha): a carga para; a coluna `geom` só aceita polígonos.
+- **Área sem nível:** a carga para; a coluna `nivel` não aceita vazio.
 - **Nível novo:** a carga para com erro de chave estrangeira. Acrescente o nível na tabela `nivel`
   (`INSERT INTO nivel(id, nome, grupo) VALUES (12, 'Nome', 'Grupo');`, e no `1_tabelas.sql`) e
   rode de novo.
@@ -167,6 +182,13 @@ recarregar nada.
 - **UC no arranjo e UC no tema não são a mesma coisa.** O tema "Unidades de Conservação" conta toda
   UC, APA e RPPN incluídas (`in_uc`). O arranjo de áreas públicas conta só a UC que não é APA, a
   sigla `UC` de `siglas_sobreposicao`, porque nas APAs só as áreas públicas entram.
+- **As marcas vêm das siglas, não das colunas de mesmo nome.** No arquivo, as colunas CAR, PROJ, UC,
+  TI e Manguezal só marcam as áreas do próprio nível: uma área de projeto dentro de uma UC vem com
+  a coluna UC vazia, mas com `UC` nas siglas. Por isso a carga ignora essas colunas, e o banco
+  calcula `in_car`, `in_projeto_recuperacao`, `in_uc`, `in_terra_indigena` e `in_manguezal` a
+  partir das siglas.
+- **A esfera da UC só vem no nível 7.** `computo_por_esfera_uc` conta as áreas do nível 7; uma
+  área de outro nível que está em UC entra no tema "Unidades de Conservação", mas sem esfera.
 - **A UF de uma área é a do recorte.** Na divisa, o limite de UF e o de município não coincidem, e
   sobram lascas com o município de um estado e a UF do vizinho (3 áreas de Vila Rica, MT, vêm com
   UF PA). Por isso `computo_por_municipio` identifica o município pelo código do IBGE, e não pela

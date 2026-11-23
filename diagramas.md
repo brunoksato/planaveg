@@ -10,7 +10,7 @@ são as referências, com uma linha por nível, arranjo e tema.
 
 ```mermaid
 erDiagram
-    nivel |o--o{ area_mapeada : "a área conta em um nível"
+    nivel ||--o{ area_mapeada : "a área conta em um nível"
     arranjo ||--o{ area_mapeada : "a área cai em um arranjo"
     tema }o..o{ area_mapeada : "regra na view computo_por_tema"
 
@@ -35,9 +35,11 @@ erDiagram
         smallint ano_mapeamento PK "2022 ou 2024"
         bigint id_no_arquivo PK "fid do GeoPackage"
         integer nivel FK "id de nivel"
-        text linha_hierarquia
-        text situacao_car
-        double total_linha_hierarquia_ha "cômputo da linha, do arquivo"
+        text linha_hierarquia "Outros Projetos ASL..."
+        text categoria "Embargadas, APP..."
+        text categoria_detalhada
+        text condicao_car "só nos níveis do CAR"
+        text categoria_projeto "só nos níveis de projeto"
         double area_ha
         text uf
         text bioma
@@ -46,8 +48,11 @@ erDiagram
         text bacia
         text mesobacia
         text regiao_hidrografica
-        boolean in_car "e mais 32 marcas in_: sim ou não"
-        text siglas_sobreposicao
+        text nome_uc "e manejo_uc, esfera_uc"
+        text nome_terra_indigena
+        text siglas_sobreposicao "PROJ, CAR, APA, UC, TI..."
+        boolean in_apa "e in_rppn, in_assentamento, in_territorio_quilombola: do arquivo"
+        boolean in_car "e in_projeto_recuperacao, in_uc, in_terra_indigena, in_manguezal: gerada das siglas"
         text arranjo FK "slug de arranjo; gerada, o PostgreSQL calcula"
         geometry geom "MultiPolygon, SIRGAS 2000 (4674)"
     }
@@ -117,9 +122,9 @@ flowchart TD
     limpa --> camada["próxima camada:<br/>2022, depois 2024"]
     camada --> conhece{"coluna que<br/>COLUNAS não<br/>conhece?"}
     conhece -- "sim" --> para2(["para: ROLLBACK, nada muda"])
-    conhece -- "não" --> prepara["para cada área:<br/>tira o cabeçalho do desenho,<br/>marcas viram sim ou não"]
+    conhece -- "não" --> prepara["para cada área:<br/>pula as colunas de IGNORAR,<br/>tira o cabeçalho do desenho,<br/>marcas viram sim ou não"]
     prepara --> grava["INSERT em area_mapeada"]
-    grava --> postgres["o PostgreSQL, ao gravar:<br/>converte Albers para 4674,<br/>calcula o arranjo,<br/>confere nível, arranjo<br/>e tipo do desenho"]
+    grava --> postgres["o PostgreSQL, ao gravar:<br/>converte Albers para 4674,<br/>calcula as marcas das siglas<br/>e o arranjo,<br/>confere nível, arranjo<br/>e tipo do desenho"]
     postgres --> erro{"erro?"}
     erro -- "sim" --> para3(["para: ROLLBACK,<br/>a tabela fica como estava"])
     erro -- "não" --> falta{"falta<br/>camada?"}
@@ -143,13 +148,13 @@ flowchart LR
     app -- "não" --> demais["demais_areas"]
 ```
 
-- **Área pública:** nível 6, 7 ou 8 (Terras Indígenas, Unidades de Conservação, Sistemas
-  Costeiros), ou está em UC, RPPN, Terra Indígena, assentamento ou território quilombola. A UC aqui
-  é a sigla `UC` de `siglas_sobreposicao`, que não conta APA; não é a marca `in_uc` (veja
-  "Cuidados" no README).
-- **APP, RL ou AUR:** nível 3, 9, 10 ou 11 (PRADA, APP, AUR, Reserva Legal), ou está em APP, RL ou
-  AUR de imóvel do CAR (habilitado, analisado ou não analisado), ou em imóvel do CAR em
-  regularização.
+- **Área pública:** nível 6, 7 ou 8 (Territórios Indígenas, Unidades de Conservação, Manguezais),
+  ou está em UC, RPPN, Terra Indígena, assentamento ou território quilombola. A UC aqui é a sigla
+  `UC` de `siglas_sobreposicao`, que não conta APA; não é a marca `in_uc` (veja "Cuidados" no
+  README).
+- **APP, RL ou AUR:** nível 3, 9, 10 ou 11 (Regularização Ambiental - CAR, APP, AUR, Reserva Legal).
+  O arquivo não diz mais se uma área de outro nível está em APP, RL ou AUR de um imóvel; só o nível
+  diz.
 
 O arranjo `baixa_produtividade` existe na tabela `arranjo`, mas a regra não manda nenhuma área para
 ele: nas views, ele aparece com zero.
